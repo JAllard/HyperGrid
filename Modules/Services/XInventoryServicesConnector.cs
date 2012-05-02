@@ -28,7 +28,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Aurora.DataManager;
 using Aurora.Simulation.Base;
 using Nini.Config;
@@ -73,7 +72,7 @@ namespace OpenSim.Services.Connectors
 
         public virtual List<InventoryFolderBase> GetRootFolders(UUID principalID)
         {
-            return new List<InventoryFolderBase>(new InventoryFolderBase[1] { GetRootFolder(principalID) });
+            return new List<InventoryFolderBase>(new[] { GetRootFolder(principalID) });
         }
 
         public virtual InventoryFolderBase GetRootFolder(UUID principalID)
@@ -509,8 +508,8 @@ namespace OpenSim.Services.Connectors
         {
             IInventoryData database = DataManager.RequestPlugin<IInventoryData>();
             return database.GetLLSDItems(
-                new string[1] { "inventoryID" },
-                new string[1] { ItemID.ToString() });
+                new[] { "inventoryID" },
+                new[] { ItemID.ToString() });
         }
 
         public OSDArray GetLLSDFolderItems(UUID folderID, UUID parentID)
@@ -575,7 +574,7 @@ namespace OpenSim.Services.Connectors
                                           : m_registry.RequestModuleInterface<IConfigurationService>().FindValueOf(
                                               "InventoryServerURI");
             if (m_url != "")
-                serverURIs = new List<string>(new string[1] { m_url });
+                serverURIs = new List<string>(new[] { m_url });
             return (from m_ServerURI in serverURIs
                     select
                         SynchronousRestFormsRequester.MakeRequest("POST", m_ServerURI,

@@ -27,15 +27,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
-using Nini.Config;
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
-using OpenSim.Services.Interfaces;
 using FriendInfo = OpenSim.Services.Interfaces.FriendInfo;
-using Aurora.Framework;
-using Aurora.DataManager;
 using Aurora.Simulation.Base;
 using OpenMetaverse;
 
@@ -43,8 +37,8 @@ namespace Aurora.Addon.Hypergrid
 {
     public class HGFriendsServicesConnector
     {
-        private string m_ServerURI = String.Empty;
-        private string m_ServiceKey = String.Empty;
+        private readonly string m_ServerURI = String.Empty;
+        private readonly string m_ServiceKey = String.Empty;
         private UUID m_SessionID;
 
         public HGFriendsServicesConnector ()
@@ -92,10 +86,8 @@ namespace Aurora.Addon.Hypergrid
                         uint.TryParse (replyData["Value"].ToString (), out perms);
                         return perms;
                     }
-                    else
-                        MainConsole.Instance.DebugFormat ("[HGFRIENDS CONNECTOR]: GetFriendPerms {0} received null response",
-                            PrincipalID);
-
+                    MainConsole.Instance.DebugFormat ("[HGFRIENDS CONNECTOR]: GetFriendPerms {0} received null response",
+                                                      PrincipalID);
                 }
             }
             catch (Exception e)
@@ -109,9 +101,7 @@ namespace Aurora.Addon.Hypergrid
 
         public bool NewFriendship (UUID PrincipalID, string Friend)
         {
-            FriendInfo finfo = new FriendInfo ();
-            finfo.PrincipalID = PrincipalID;
-            finfo.Friend = Friend;
+            FriendInfo finfo = new FriendInfo {PrincipalID = PrincipalID, Friend = Friend};
 
             Dictionary<string, object> sendData = finfo.ToKVP ();
 
@@ -142,9 +132,8 @@ namespace Aurora.Addon.Hypergrid
                     Boolean.TryParse (replyData["Result"].ToString (), out success);
                     return success;
                 }
-                else
-                    MainConsole.Instance.DebugFormat ("[HGFRIENDS CONNECTOR]: StoreFriend {0} {1} received null response",
-                        PrincipalID, Friend);
+                MainConsole.Instance.DebugFormat ("[HGFRIENDS CONNECTOR]: StoreFriend {0} {1} received null response",
+                                                  PrincipalID, Friend);
             }
             else
                 MainConsole.Instance.DebugFormat ("[HGFRIENDS CONNECTOR]: StoreFriend received null reply");
@@ -155,9 +144,7 @@ namespace Aurora.Addon.Hypergrid
 
         public bool DeleteFriendship (UUID PrincipalID, UUID Friend, string secret)
         {
-            FriendInfo finfo = new FriendInfo ();
-            finfo.PrincipalID = PrincipalID;
-            finfo.Friend = Friend.ToString ();
+            FriendInfo finfo = new FriendInfo {PrincipalID = PrincipalID, Friend = Friend.ToString()};
 
             Dictionary<string, object> sendData = finfo.ToKVP();
 
@@ -187,9 +174,8 @@ namespace Aurora.Addon.Hypergrid
                     Boolean.TryParse (replyData["Result"].ToString (), out success);
                     return success;
                 }
-                else
-                    MainConsole.Instance.DebugFormat ("[HGFRIENDS CONNECTOR]: Delete {0} {1} received null response",
-                        PrincipalID, Friend);
+                MainConsole.Instance.DebugFormat ("[HGFRIENDS CONNECTOR]: Delete {0} {1} received null response",
+                                                  PrincipalID, Friend);
             }
             else
                 MainConsole.Instance.DebugFormat ("[HGFRIENDS CONNECTOR]: DeleteFriend received null reply");

@@ -25,20 +25,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using Nini.Config;
 using Aurora.Framework;
-using Aurora.Framework.Servers.HttpServer;
-using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
-using Aurora.Simulation.Base;
 using OpenMetaverse;
-using OpenMetaverse.StructuredData;
-using OpenSim.Region.Framework.Scenes;
-using OpenSim.Services.Connectors;
 using OpenSim.Services.GridService;
 
 namespace Aurora.Addon.Hypergrid

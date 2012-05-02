@@ -26,14 +26,8 @@
  */
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
-
 using Aurora.Framework;
-
-using OpenSim.Region.Framework;
 using OpenSim.Region.Framework.Interfaces;
-using OpenSim.Region.Framework.Scenes;
 using OpenSim.Services.Interfaces;
 
 using OpenMetaverse;
@@ -53,7 +47,7 @@ namespace Aurora.Addon.Hypergrid
 
     public class UserManagementModule : BaseUserFinding, ISharedRegionModule, IUserManagement
     {
-        private List<IScene> m_Scenes = new List<IScene> ();
+        private readonly List<IScene> m_Scenes = new List<IScene> ();
 
         protected override IUserAccountService UserAccountService
         {
@@ -145,18 +139,17 @@ namespace Aurora.Addon.Hypergrid
         {
             // let's sniff all the user names referenced by objects in the scene
             MainConsole.Instance.DebugFormat ("[USER MANAGEMENT MODULE]: Caching creators' data from {0} ({1} objects)...", scene.RegionInfo.RegionName, scene.Entities.Count);
-            scene.ForEachSceneEntity (delegate (ISceneEntity sog)
-            {
-                CacheCreators (sog);
-            });
+            scene.ForEachSceneEntity (CacheCreators);
         }
 
         void EventManager_OnNewClient (IClientAPI client)
         {
-            UserData ud = new UserData ();
-            ud.FirstName = client.FirstName;
-            ud.LastName = client.LastName;
-            ud.ServerURLs = client.RequestClientInfo ().ServiceURLs;
+            UserData ud = new UserData
+                              {
+                                  FirstName = client.FirstName,
+                                  LastName = client.LastName,
+                                  ServerURLs = client.RequestClientInfo().ServiceURLs
+                              };
             if (ud.ServerURLs != null && ud.ServerURLs.ContainsKey (GetHandlers.Helpers_HomeURI))
                 ud.HomeURL = ud.ServerURLs[GetHandlers.Helpers_HomeURI].ToString ();
             else
@@ -164,7 +157,7 @@ namespace Aurora.Addon.Hypergrid
             if (ud.ServerURLs == null)
                 ud.ServerURLs = new Dictionary<string, object> ();
             m_UserCache[client.AgentId] = ud;//Cache them
-            client.OnNameFromUUIDRequest += new UUIDNameRequest (HandleUUIDNameRequest);
+            client.OnNameFromUUIDRequest += HandleUUIDNameRequest;
         }
 
         void HandleUUIDNameRequest (UUID uuid, IClientAPI remote_client)
@@ -211,7 +204,6 @@ namespace Aurora.Addon.Hypergrid
                 MainConsole.Instance.Output (String.Format ("{0} {1} {2}",
                        kvp.Key, kvp.Value.FirstName, kvp.Value.LastName));
             }
-            return;
         }
     }
 
@@ -247,9 +239,7 @@ namespace Aurora.Addon.Hypergrid
                 returnstring[0] = account.FirstName;
                 returnstring[1] = account.LastName;
 
-                UserData user = new UserData ();
-                user.FirstName = account.FirstName;
-                user.LastName = account.LastName;
+                UserData user = new UserData {FirstName = account.FirstName, LastName = account.LastName};
 
                 lock (m_UserCache)
                     m_UserCache[uuid] = user;
@@ -341,8 +331,7 @@ namespace Aurora.Addon.Hypergrid
             if (m_UserCache.ContainsKey (uuid))
                 return;
 
-            UserData user = new UserData ();
-            user.Id = uuid;
+            UserData user = new UserData {Id = uuid};
             UserAccount account = UserAccountService.GetUserAccount (UUID.Zero, uuid);
             if (account != null)
             {
@@ -352,7 +341,7 @@ namespace Aurora.Addon.Hypergrid
             }
             else
             {
-                if (userData != null && userData != string.Empty)
+                if (!string.IsNullOrEmpty(userData))
                 {
                     bool addOne = false;
                     string[] parts = userData.Split (';');

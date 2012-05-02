@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using Nini.Config;
 using Aurora.Framework;
 using OpenSim.Services.Interfaces;
@@ -11,7 +9,7 @@ namespace Aurora.Addon.Hypergrid
 {
     public class HGAgentInfoService : AgentInfoService
     {
-        public override void Initialize (Nini.Config.IConfigSource config, IRegistryCore registry)
+        public override void Initialize (IConfigSource config, IRegistryCore registry)
         {
             m_registry = registry;
             IConfig hgConfig = config.Configs["HyperGrid"];
@@ -26,13 +24,13 @@ namespace Aurora.Addon.Hypergrid
             Init(registry, Name);
         }
 
-        [CanBeReflected(ThreatLevel = OpenSim.Services.Interfaces.ThreatLevel.Low)]
+        [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override List<string> GetAgentsLocations(string requestor, List<string> userIDs)
         {
             List<string> locations = new List<string> ();
             foreach (string userID in userIDs)
             {
-                List<string> l = base.GetAgentsLocations(requestor, new List<string>() { userID });
+                List<string> l = base.GetAgentsLocations(requestor, new List<string> { userID });
                 if (l[0] == "NotOnline")
                 {
                     UserAccount acc = m_registry.RequestModuleInterface<IUserAccountService> ().GetUserAccount (UUID.Zero, UUID.Parse (userID));

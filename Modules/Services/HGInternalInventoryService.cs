@@ -25,15 +25,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System;
 using System.Collections.Generic;
 using OpenMetaverse;
 using Nini.Config;
-using System.Reflection;
 using OpenSim.Services.Interfaces;
 using OpenSim.Services.InventoryService;
 using Aurora.Framework;
-using OpenSim.Services;
 using OpenSim.Services.Connectors;
 
 namespace Aurora.Addon.Hypergrid
@@ -71,7 +68,7 @@ namespace Aurora.Addon.Hypergrid
             base.FinishedStartup ();
         }
 
-        [CanBeReflected(ThreatLevel = OpenSim.Services.Interfaces.ThreatLevel.Low)]
+        [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override bool AddItem(InventoryItemBase item)
         {
             string invserverURL = "";
@@ -84,7 +81,7 @@ namespace Aurora.Addon.Hypergrid
             return base.AddItem (item);
         }
 
-        [CanBeReflected(ThreatLevel = OpenSim.Services.Interfaces.ThreatLevel.Low)]
+        [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override bool AddFolder(InventoryFolderBase folder)
         {
             string invserverURL = "";
@@ -96,7 +93,7 @@ namespace Aurora.Addon.Hypergrid
             return base.AddFolder (folder);
         }
 
-        [CanBeReflected(ThreatLevel = OpenSim.Services.Interfaces.ThreatLevel.Low)]
+        [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override InventoryFolderBase GetFolderForType(UUID principalID, InventoryType invType, AssetType type)
         {
             string invserverURL = "";
@@ -108,7 +105,7 @@ namespace Aurora.Addon.Hypergrid
             return base.GetFolderForType (principalID, invType, type);
         }
 
-        [CanBeReflected(ThreatLevel = OpenSim.Services.Interfaces.ThreatLevel.Medium)]
+        [CanBeReflected(ThreatLevel = ThreatLevel.Medium)]
         public override InventoryFolderBase GetRootFolder(UUID principalID)
         {
             string invserverURL = "";
@@ -120,7 +117,7 @@ namespace Aurora.Addon.Hypergrid
             return base.GetRootFolder (principalID);
         }
 
-        [CanBeReflected(ThreatLevel = OpenSim.Services.Interfaces.ThreatLevel.Low)]
+        [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override InventoryFolderBase GetFolder(InventoryFolderBase folder)
         {
             string invserverURL = "";
@@ -132,14 +129,15 @@ namespace Aurora.Addon.Hypergrid
             return base.GetFolder (folder);
         }
 
-        [CanBeReflected(ThreatLevel = OpenSim.Services.Interfaces.ThreatLevel.Low)]
+        [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override InventoryItemBase GetItem(InventoryItemBase item)
         {
-            string invServerURL = "", assetServerURL = "";
+            string invServerURL = "";
             if (GetHandlers.GetIsForeign (item.Owner, "InventoryServerURI", m_registry, out invServerURL))
             {
                 XInventoryServicesConnector xinv = new XInventoryServicesConnector (invServerURL + "xinventory");
                 InventoryItemBase it = xinv.GetItem (item);
+                string assetServerURL = "";
                 if (GetHandlers.GetIsForeign (item.Owner, "AssetServerURI", m_registry, out assetServerURL))
                 {
                     GetAssets (it, assetServerURL + "assets");
@@ -154,7 +152,7 @@ namespace Aurora.Addon.Hypergrid
                     UserAccount user = m_UserAccountService.GetUserAccount(UUID.Zero, UUID.Parse(it.CreatorId));
 
                     // Adjust the creator data
-                    if(user != null && it != null && (it.CreatorData == null || it.CreatorData == string.Empty))
+                    if(user != null && string.IsNullOrEmpty(it.CreatorData))
                         it.CreatorData = GetHandlers.PROFILE_URL + "/" + it.CreatorId + ";" + user.FirstName + " " + user.LastName;
                 }
                 return it;

@@ -1,12 +1,6 @@
 ﻿using OpenMetaverse;
 using Aurora.Framework;
-using System;
-using System.Collections.Generic;
 using OpenSim.Services.Interfaces;
-using Nini.Config;
-using FriendInfo = OpenSim.Services.Interfaces.FriendInfo;
-using Aurora.Framework;
-using Aurora.Simulation.Base;
 using OpenSim.Services.Friends;
 
 namespace Aurora.Addon.HyperGrid.Handlers
@@ -25,19 +19,16 @@ namespace Aurora.Addon.HyperGrid.Handlers
             UUID FriendUUID;
             if (!UUID.TryParse(Friend, out FriendUUID))
                 return base.StoreFriend(PrincipalID, Friend, flags);//Already set to a UUI
-            else
+            UserAccount friendAccount = userAccountService.GetUserAccount (UUID.Zero, FriendUUID);
+            if (agentAccount == null || friendAccount == null)
             {
-                UserAccount friendAccount = userAccountService.GetUserAccount (UUID.Zero, FriendUUID);
-                if (agentAccount == null || friendAccount == null)
-                {
-                    // remote grid users
-                    ICapsService capsService = m_registry.RequestModuleInterface<ICapsService> ();
-                    IClientCapsService FriendCaps = capsService.GetClientCapsService (UUID.Parse (Friend));
-                    if (FriendCaps != null && FriendCaps.GetRootCapsService () != null)
-                        Friend = HGUtil.ProduceUserUniversalIdentifier (FriendCaps.GetRootCapsService ().CircuitData);
-                }
-                return base.StoreFriend (PrincipalID, Friend, flags);
+                // remote grid users
+                ICapsService capsService = m_registry.RequestModuleInterface<ICapsService> ();
+                IClientCapsService FriendCaps = capsService.GetClientCapsService (UUID.Parse (Friend));
+                if (FriendCaps != null && FriendCaps.GetRootCapsService () != null)
+                    Friend = HGUtil.ProduceUserUniversalIdentifier (FriendCaps.GetRootCapsService ().CircuitData);
             }
+            return base.StoreFriend (PrincipalID, Friend, flags);
         }
     }
 }

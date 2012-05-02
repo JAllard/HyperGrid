@@ -27,30 +27,24 @@
 
 using System;
 using System.Collections;
-using System.IO;
-using System.Reflection;
 using System.Net;
-using System.Text;
-
 using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using Aurora.Framework;
-using Aurora.DataManager;
 using Aurora.Simulation.Base;
 
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
-using Nini.Config;
 
 
 namespace Aurora.Addon.Hypergrid
 {
     public class HomeAgentHandler
     {
-        private IUserAgentService m_UserAgentService;
+        private readonly IUserAgentService m_UserAgentService;
 
-        private string m_loginServerIP;
-        private bool m_Proxy = false;
+        private readonly string m_loginServerIP;
+        private readonly bool m_Proxy = false;
 
         public HomeAgentHandler (IUserAgentService userAgentService, string loginServerIP, bool proxy)
         {
@@ -93,15 +87,11 @@ namespace Aurora.Addon.Hypergrid
                 DoAgentPost (request, responsedata, agentID);
                 return responsedata;
             }
-            else
-            {
-                MainConsole.Instance.InfoFormat ("[HOME AGENT HANDLER]: method {0} not supported in agent message", method);
-                responsedata["int_response_code"] = HttpStatusCode.MethodNotAllowed;
-                responsedata["str_response_string"] = "Method not allowed";
+            MainConsole.Instance.InfoFormat ("[HOME AGENT HANDLER]: method {0} not supported in agent message", method);
+            responsedata["int_response_code"] = HttpStatusCode.MethodNotAllowed;
+            responsedata["str_response_string"] = "Method not allowed";
 
-                return responsedata;
-            }
-
+            return responsedata;
         }
 
         protected void DoAgentPost (Hashtable request, Hashtable responsedata, UUID id)
@@ -133,11 +123,13 @@ namespace Aurora.Addon.Hypergrid
             if (args.ContainsKey ("destination_serveruri") && args["destination_serveruri"] != null)
                 destination_serveruri = args["destination_serveruri"];
 
-            GridRegion gatekeeper = new GridRegion ();
-            gatekeeper.ServerURI = gatekeeper_serveruri;
-            gatekeeper.ExternalHostName = gatekeeper_host;
-            gatekeeper.HttpPort = (uint)gatekeeper_port;
-            gatekeeper.InternalEndPoint = new IPEndPoint (IPAddress.Parse ("0.0.0.0"), 0);
+            GridRegion gatekeeper = new GridRegion
+                                        {
+                                            ServerURI = gatekeeper_serveruri,
+                                            ExternalHostName = gatekeeper_host,
+                                            HttpPort = (uint) gatekeeper_port,
+                                            InternalEndPoint = new IPEndPoint(IPAddress.Parse("0.0.0.0"), 0)
+                                        };
 
             if (args.ContainsKey ("destination_x") && args["destination_x"] != null)
                 Int32.TryParse (args["destination_x"].AsString (), out x);
@@ -170,12 +162,14 @@ namespace Aurora.Addon.Hypergrid
                 }
             }
 
-            GridRegion destination = new GridRegion ();
-            destination.RegionID = uuid;
-            destination.RegionLocX = x;
-            destination.RegionLocY = y;
-            destination.RegionName = regionname;
-            destination.ServerURI = destination_serveruri;
+            GridRegion destination = new GridRegion
+                                         {
+                                             RegionID = uuid,
+                                             RegionLocX = x,
+                                             RegionLocY = y,
+                                             RegionName = regionname,
+                                             ServerURI = destination_serveruri
+                                         };
 
             AgentCircuitData aCircuit = new AgentCircuitData ();
             try

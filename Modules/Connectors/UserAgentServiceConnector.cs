@@ -30,11 +30,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Reflection;
 using System.Text;
 using Aurora.Framework;
 using OpenSim.Services.Interfaces;
-using OpenSim.Services.Connectors.Simulation;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
@@ -45,7 +43,7 @@ namespace Aurora.Addon.Hypergrid
 {
     public class UserAgentServiceConnector : IUserAgentService
     {
-        string m_ServerURL;
+        readonly string m_ServerURL;
 
         public UserAgentServiceConnector (string url)
             : this (url, true)

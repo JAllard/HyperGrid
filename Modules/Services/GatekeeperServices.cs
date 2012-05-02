@@ -28,9 +28,6 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Reflection;
-using System.Text.RegularExpressions;
-
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
@@ -40,7 +37,6 @@ using OpenMetaverse;
 using OpenMetaverse.StructuredData;
 
 using Nini.Config;
-using Aurora.Framework;
 using Aurora.Simulation.Base;
 
 namespace Aurora.Addon.Hypergrid
@@ -76,7 +72,7 @@ namespace Aurora.Addon.Hypergrid
             {
                 m_AllowTeleportsToAnyRegion = hgConfig.GetBoolean ("AllowTeleportsToAnyRegion", true);
                 m_defaultRegion = hgConfig.GetString ("DefaultTeleportRegion", "");
-                enabled = serverConfig.GetBoolean ("Enabled", enabled);
+                enabled = serverConfig.GetBoolean ("Enabled", false);
             }
             if (!enabled)
                 return;
@@ -144,11 +140,15 @@ namespace Aurora.Addon.Hypergrid
 
         private GridRegion FindRegion (List<GridRegion> defs)
         {
+#if (!ISWIN)
             for (int i = 0; i < defs.Count; i++)
             {
-                if ((defs[i].Flags & (int)Aurora.Framework.RegionFlags.Safe) == (int)Aurora.Framework.RegionFlags.Safe)
+                if ((defs[i].Flags & (int)Framework.RegionFlags.Safe) == (int)Framework.RegionFlags.Safe)
                     return defs[i];
             }
+#else
+            return defs.FirstOrDefault(t => (t.Flags & (int) Framework.RegionFlags.Safe) == (int) Framework.RegionFlags.Safe);
+#endif
             return null;
         }
 
@@ -214,11 +214,11 @@ namespace Aurora.Addon.Hypergrid
             }
 
             GridRegion region = m_GridService.GetRegionByUUID (UUID.Zero, regionID);
-            if(region != null && (region.Flags & (int)Aurora.Framework.RegionFlags.Safe) == (int)Aurora.Framework.RegionFlags.Safe)
+            if(region != null && (region.Flags & (int)Framework.RegionFlags.Safe) == (int)Framework.RegionFlags.Safe)
                 return region;
             if (!m_foundDefaultRegion || m_DefaultGatewayRegion == null)
                 m_DefaultGatewayRegion = FindDefaultRegion();
-            if (m_DefaultGatewayRegion != null && (m_DefaultGatewayRegion.Flags & (int)Aurora.Framework.RegionFlags.Safe) == (int)Aurora.Framework.RegionFlags.Safe)
+            if (m_DefaultGatewayRegion != null && (m_DefaultGatewayRegion.Flags & (int)Framework.RegionFlags.Safe) == (int)Framework.RegionFlags.Safe)
                 return m_DefaultGatewayRegion;
             return (m_DefaultGatewayRegion = FindDefaultRegion ());
         }
@@ -345,7 +345,7 @@ namespace Aurora.Addon.Hypergrid
                 catch
                 {
                     MainConsole.Instance.WarnFormat ("[GATEKEEPER SERVICE]: Malformed HomeURI (this should never happen): {0}", aCircuit.ServiceURLs["HomeURI"]);
-                    aCircuit.lastname = "@" + aCircuit.ServiceURLs["HomeURI"].ToString ();
+                    aCircuit.lastname = "@" + aCircuit.ServiceURLs["HomeURI"];
                 }
             }
 
@@ -353,13 +353,13 @@ namespace Aurora.Addon.Hypergrid
             //
             // Finally launch the agent at the destination
             //
-            TeleportFlags loginFlag = /*isFirstLogin ? */TeleportFlags.ViaLogin/* : TeleportFlags.ViaHGLogin*/;
+            const TeleportFlags loginFlag = TeleportFlags.ViaLogin;
             IRegionClientCapsService regionClientCaps = null;
             if (m_CapsService != null)
             {
                 //Remove any previous users
-                string ServerCapsBase = Aurora.Framework.Capabilities.CapsUtil.GetRandomCapsObjectPath ();
-                m_CapsService.CreateCAPS(aCircuit.AgentID, Aurora.Framework.Capabilities.CapsUtil.GetCapsSeedPath(ServerCapsBase), destination.RegionHandle, true, aCircuit);
+                string ServerCapsBase = Framework.Capabilities.CapsUtil.GetRandomCapsObjectPath ();
+                m_CapsService.CreateCAPS(aCircuit.AgentID, Framework.Capabilities.CapsUtil.GetCapsSeedPath(ServerCapsBase), destination.RegionHandle, true, aCircuit);
 
                 regionClientCaps = m_CapsService.GetClientCapsService (aCircuit.AgentID).GetCapsService (destination.RegionHandle);
                 if (aCircuit.ServiceURLs == null)
@@ -390,16 +390,13 @@ namespace Aurora.Addon.Hypergrid
                     destination = m_DefaultGatewayRegion;
                     goto retry;
                 }
-                else
-                {
-                    m_DefaultGatewayRegion = FindDefaultRegion ();
-                    if (m_DefaultGatewayRegion == destination)
-                        return false;//It failed to find a new one
-                    destination = m_DefaultGatewayRegion;
-                    goto retry;//It found a new default region
-                }
+                m_DefaultGatewayRegion = FindDefaultRegion ();
+                if (m_DefaultGatewayRegion == destination)
+                    return false;//It failed to find a new one
+                destination = m_DefaultGatewayRegion;
+                goto retry;//It found a new default region
             }
-            return success;
+            return true;
         }
 
         protected bool Authenticate (AgentCircuitData aCircuit)
@@ -419,36 +416,28 @@ namespace Aurora.Addon.Hypergrid
 
             if (userURL == m_ExternalName)
                 return m_UserAgentService.VerifyAgent (aCircuit.SessionID, aCircuit.ServiceSessionID);
-            else
+            //                Object[] args = new Object[] { userURL };
+            IUserAgentService userAgentService = new UserAgentServiceConnector (userURL);
+            try
             {
-                //                Object[] args = new Object[] { userURL };
-                IUserAgentService userAgentService = new UserAgentServiceConnector (userURL);
-                if (userAgentService != null)
-                {
-                    try
-                    {
-                        return userAgentService.VerifyAgent (aCircuit.SessionID, aCircuit.ServiceSessionID);
-                    }
-                    catch
-                    {
-                        MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE]: Unable to contact authentication service at {0}", userURL);
-                        return false;
-                    }
-                }
+                return userAgentService.VerifyAgent (aCircuit.SessionID, aCircuit.ServiceSessionID);
             }
-
-            return false;
+            catch
+            {
+                MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE]: Unable to contact authentication service at {0}", userURL);
+                return false;
+            }
         }
 
         // Check that the service token was generated for *this* grid.
         // If it wasn't then that's a fake agent.
         protected bool CheckAddress (string serviceToken)
         {
-            string[] parts = serviceToken.Split (new char[] { ';' });
+            string[] parts = serviceToken.Split (new[] { ';' });
             if (parts.Length < 2)
                 return false;
 
-            char[] trailing_slash = new char[] { '/' };
+            char[] trailing_slash = new[] { '/' };
             string addressee = parts[0].TrimEnd (trailing_slash);
             string externalname = m_ExternalName.TrimEnd (trailing_slash);
             MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE]: Verifying {0} against {1}", addressee, externalname);

@@ -28,8 +28,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Xml;
 using Aurora.Simulation.Base;
@@ -397,8 +395,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.AddFolder(folder))
                 return SuccessResult();
-            else
-                return FailureResult();
+            return FailureResult();
         }
 
         private byte[] HandleUpdateFolder(Dictionary<string, object> request)
@@ -407,8 +404,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.UpdateFolder(folder))
                 return SuccessResult();
-            else
-                return FailureResult();
+            return FailureResult();
         }
 
         private byte[] HandleMoveFolder(Dictionary<string, object> request)
@@ -423,8 +419,7 @@ namespace OpenSim.Services
             InventoryFolderBase folder = new InventoryFolderBase(folderID, "", principal, parentID);
             if (m_InventoryService.MoveFolder(folder))
                 return SuccessResult();
-            else
-                return FailureResult();
+            return FailureResult();
         }
 
         byte[] HandleDeleteFolders(Dictionary<string, object> request)
@@ -451,8 +446,7 @@ namespace OpenSim.Services
             InventoryFolderBase folder = new InventoryFolderBase(folderID);
             if (m_InventoryService.PurgeFolder(folder))
                 return SuccessResult();
-            else
-                return FailureResult();
+            return FailureResult();
         }
 
         private byte[] HandleAddItem(Dictionary<string, object> request)
@@ -461,8 +455,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.AddItem(item))
                 return SuccessResult();
-            else
-                return FailureResult();
+            return FailureResult();
         }
 
         private byte[] HandleUpdateItem(Dictionary<string, object> request)
@@ -471,8 +464,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.UpdateItem(item))
                 return SuccessResult();
-            else
-                return FailureResult();
+            return FailureResult();
         }
 
         byte[] HandleMoveItems(Dictionary<string, object> request)
@@ -508,8 +500,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.MoveItems(principal, items))
                 return SuccessResult();
-            else
-                return FailureResult();
+            return FailureResult();
         }
 
         byte[] HandleDeleteItems(Dictionary<string, object> request)
@@ -518,6 +509,7 @@ namespace OpenSim.Services
             UUID.TryParse(request["PRINCIPAL"].ToString(), out principal);
             List<string> slist = (List<string>)request["ITEMS"];
             List<UUID> uuids = new List<UUID>();
+
             foreach (string s in slist)
             {
                 UUID u = UUID.Zero;

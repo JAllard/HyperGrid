@@ -28,12 +28,10 @@
 using System;
 using System.IO;
 using System.Net;
-using System.Reflection;
 using System.Xml.Serialization;
 using Aurora.Simulation.Base;
 using Nini.Config;
 using OpenMetaverse;
-using OpenMetaverse.StructuredData;
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
@@ -42,7 +40,7 @@ namespace OpenSim.Services
 {
     public class AssetServiceConnector : IService, IGridRegistrationUrlModule
     {
-        private string m_ConfigName = "AssetService";
+        private const string m_ConfigName = "AssetService";
         private bool m_allowDelete;
         private IRegistryCore m_registry;
 

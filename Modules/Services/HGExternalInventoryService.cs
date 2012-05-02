@@ -25,16 +25,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System;
 using System.Collections.Generic;
 using OpenMetaverse;
 using Nini.Config;
-using System.Reflection;
 using OpenSim.Services.Interfaces;
 using OpenSim.Services.InventoryService;
 using Aurora.Framework;
 using OpenSim.Services;
-using OpenSim.Services.Connectors;
 
 namespace Aurora.Addon.Hypergrid
 {
@@ -100,8 +97,8 @@ namespace Aurora.Addon.Hypergrid
             //MainConsole.Instance.DebugFormat("[HG INVENTORY SERVICE]: GetRootFolder for {0}", principalID);
             // Warp! Root folder for travelers
             List<InventoryFolderBase> folders = m_Database.GetFolders (
-                    new string[] { "agentID", "type", "folderName" },
-                    new string[] { principalID.ToString (), ((int)AssetType.LostAndFoundFolder).ToString (), "My Foreign Items" });
+                    new[] { "agentID", "type", "folderName" },
+                    new[] { principalID.ToString (), ((int)AssetType.LostAndFoundFolder).ToString (), "My Foreign Items" });
             if (folders.Count > 0)
                 return folders[0];
             InventoryFolderBase realRoot = base.GetRootFolder (principalID);
@@ -147,51 +144,42 @@ namespace Aurora.Addon.Hypergrid
             switch (type)
             {
                 case AssetType.Object:
-                    InventoryFolderBase objFolder = GetFolderType (principalID, invFolder.ID, type);
-                    if (objFolder == null)
-                        objFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.Object, "Foreign Objects");
+                    InventoryFolderBase objFolder = GetFolderType (principalID, invFolder.ID, type) ??
+                                                    CreateFolder (principalID, invFolder.ID, (int)AssetType.Object, "Foreign Objects");
                     return objFolder;
                 case AssetType.LSLText:
-                    InventoryFolderBase lslFolder = GetFolderType (principalID, invFolder.ID, type);
-                    if (lslFolder == null)
-                        lslFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.LSLText, "Foreign Scripts");
+                    InventoryFolderBase lslFolder = GetFolderType (principalID, invFolder.ID, type) ??
+                                                    CreateFolder (principalID, invFolder.ID, (int)AssetType.LSLText, "Foreign Scripts");
                     return lslFolder;
                 case AssetType.Notecard:
-                    InventoryFolderBase ncFolder = GetFolderType (principalID, invFolder.ID, type);
-                    if (ncFolder == null)
-                        ncFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.Notecard, "Foreign Notecards");
+                    InventoryFolderBase ncFolder = GetFolderType (principalID, invFolder.ID, type) ??
+                                                   CreateFolder (principalID, invFolder.ID, (int)AssetType.Notecard, "Foreign Notecards");
                     return ncFolder;
                 case AssetType.Animation:
-                    InventoryFolderBase aniFolder = GetFolderType (principalID, invFolder.ID, type);
-                    if (aniFolder == null)
-                        aniFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.Notecard, "Foreign Animiations");
+                    InventoryFolderBase aniFolder = GetFolderType (principalID, invFolder.ID, type) ??
+                                                    CreateFolder (principalID, invFolder.ID, (int)AssetType.Notecard, "Foreign Animiations");
                     return aniFolder;
                 case AssetType.Bodypart:
                 case AssetType.Clothing:
-                    InventoryFolderBase clothingFolder = GetFolderType (principalID, invFolder.ID, AssetType.Clothing);
-                    if (clothingFolder == null)
-                        clothingFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.Clothing, "Foreign Clothing");
+                    InventoryFolderBase clothingFolder = GetFolderType (principalID, invFolder.ID, AssetType.Clothing) ??
+                                                         CreateFolder (principalID, invFolder.ID, (int)AssetType.Clothing, "Foreign Clothing");
                     return clothingFolder;
                 case AssetType.Gesture:
-                    InventoryFolderBase gestureFolder = GetFolderType (principalID, invFolder.ID, type);
-                    if (gestureFolder == null)
-                        gestureFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.Gesture, "Foreign Gestures");
+                    InventoryFolderBase gestureFolder = GetFolderType (principalID, invFolder.ID, type) ??
+                                                        CreateFolder (principalID, invFolder.ID, (int)AssetType.Gesture, "Foreign Gestures");
                     return gestureFolder;
                 case AssetType.Landmark:
-                    InventoryFolderBase lmFolder = GetFolderType (principalID, invFolder.ID, type);
-                    if (lmFolder == null)
-                        lmFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.Landmark, "Foreign Landmarks");
+                    InventoryFolderBase lmFolder = GetFolderType (principalID, invFolder.ID, type) ??
+                                                   CreateFolder (principalID, invFolder.ID, (int)AssetType.Landmark, "Foreign Landmarks");
                     return lmFolder;
                 case AssetType.SnapshotFolder:
                 case AssetType.Texture:
-                    InventoryFolderBase textureFolder = GetFolderType (principalID, invFolder.ID, type);
-                    if (textureFolder == null)
-                        textureFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.Landmark, "Foreign Textures");
+                    InventoryFolderBase textureFolder = GetFolderType (principalID, invFolder.ID, type) ??
+                                                        CreateFolder (principalID, invFolder.ID, (int)AssetType.Landmark, "Foreign Textures");
                     return textureFolder;
                 case AssetType.Sound:
-                    InventoryFolderBase soundFolder = GetFolderType (principalID, invFolder.ID, type);
-                    if (soundFolder == null)
-                        soundFolder = CreateFolder (principalID, invFolder.ID, (int)AssetType.Landmark, "Foreign Sounds");
+                    InventoryFolderBase soundFolder = GetFolderType (principalID, invFolder.ID, type) ??
+                                                      CreateFolder (principalID, invFolder.ID, (int)AssetType.Landmark, "Foreign Sounds");
                     return soundFolder;
                 default:
                     return invFolder;
@@ -201,8 +189,8 @@ namespace Aurora.Addon.Hypergrid
         private InventoryFolderBase GetFolderType (UUID principalID, UUID parentID, AssetType type)
         {
             List<InventoryFolderBase> folders = m_Database.GetFolders (
-                    new string[] { "agentID", "type", "parentFolderID"},
-                    new string[] { principalID.ToString (), ((int)type).ToString (), parentID.ToString()});
+                    new[] { "agentID", "type", "parentFolderID"},
+                    new[] { principalID.ToString (), ((int)type).ToString (), parentID.ToString()});
             if (folders.Count > 0)
                 return folders[0];
             return null;
@@ -237,12 +225,14 @@ namespace Aurora.Addon.Hypergrid
 
         private List<InventoryFolderBase> GetDescendents (List<InventoryFolderBase> lst, UUID root)
         {
-            List<InventoryFolderBase> direct = lst.FindAll (delegate (InventoryFolderBase f)
+#if (!ISWIN)
+            List<InventoryFolderBase> direct = lst.FindAll(delegate(InventoryFolderBase f)
             {
                 return f.ParentID == root;
             });
-            if (direct == null)
-                return new List<InventoryFolderBase> ();
+#else
+            List<InventoryFolderBase> direct = lst.FindAll(f => f.ParentID == root);
+#endif
 
             List<InventoryFolderBase> indirect = new List<InventoryFolderBase> ();
             foreach (InventoryFolderBase f in direct)
@@ -355,7 +345,7 @@ namespace Aurora.Addon.Hypergrid
             UserAccount user = m_UserAccountService.GetUserAccount (UUID.Zero, UUID.Parse(it.CreatorId));
 
             // Adjust the creator data
-            if (user != null && it != null && (it.CreatorData == null || it.CreatorData == string.Empty))
+            if (user != null && string.IsNullOrEmpty(it.CreatorData))
                 it.CreatorData = GetHandlers.PROFILE_URL + "/" + it.CreatorId + ";" + user.FirstName + " " + user.LastName;
 
             return it;

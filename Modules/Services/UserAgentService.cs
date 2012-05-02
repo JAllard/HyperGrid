@@ -28,15 +28,11 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Reflection;
-
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using FriendInfo = OpenSim.Services.Interfaces.FriendInfo;
-using Aurora.Framework;
-using Aurora.DataManager;
 using Aurora.Simulation.Base;
 
 using OpenMetaverse;
@@ -53,7 +49,7 @@ namespace Aurora.Addon.Hypergrid
     public class UserAgentService : IUserAgentService, IService
     {
         // This will need to go into a DB table
-        static Dictionary<UUID, TravelingAgentInfo> m_TravelingAgents = new Dictionary<UUID, TravelingAgentInfo> ();
+        static readonly Dictionary<UUID, TravelingAgentInfo> m_TravelingAgents = new Dictionary<UUID, TravelingAgentInfo> ();
 
         protected static IGridService m_GridService;
         protected static IRegistryCore m_registry;
@@ -126,11 +122,14 @@ namespace Aurora.Addon.Hypergrid
                         (circuit.ServiceURLs.ContainsKey ("HomeURI") && !Uri.TryCreate (circuit.ServiceURLs["HomeURI"].ToString (), UriKind.Absolute, out uri)))
                         return null;
 
-                    region.ExternalHostName = uri.Host;
-                    region.HttpPort = (uint)uri.Port;
+                    if (uri != null)
+                    {
+                        region.ExternalHostName = uri.Host;
+                        region.HttpPort = (uint)uri.Port;
+                    }
                     region.ServerURI = region.ServerURI;
                     region.RegionName = string.Empty;
-                    region.InternalEndPoint = new System.Net.IPEndPoint (System.Net.IPAddress.Parse ("0.0.0.0"), (int)0);
+                    region.InternalEndPoint = new IPEndPoint (IPAddress.Parse ("0.0.0.0"), 0);
                     bool isComingHome = userAgentService.AgentIsComingHome (circuit.SessionID, m_GridName);
                     return region;
                 }
@@ -155,8 +154,8 @@ namespace Aurora.Addon.Hypergrid
                     position = uinfo.HomePosition;
                     lookAt = uinfo.HomeLookAt;
                 }
-                if (home == null || ((home.Flags & (int)Aurora.Framework.RegionFlags.Safe) 
-                    != (int)Aurora.Framework.RegionFlags.Safe))
+                if (home == null || ((home.Flags & (int)Framework.RegionFlags.Safe) 
+                    != (int)Framework.RegionFlags.Safe))
                 {
                     home = m_GatekeeperService.GetHyperlinkRegion (UUID.Zero);
                     if (home != null)
@@ -221,8 +220,7 @@ namespace Aurora.Addon.Hypergrid
 
                 return false;
             }
-            else
-                reason = "";
+            reason = "";
 
             MainConsole.Instance.DebugFormat ("[USER AGENT SERVICE]: Gatekeeper sees me as {0}", myExternalIP);
             // else set the IP addresses associated with this client
@@ -366,8 +364,7 @@ namespace Aurora.Addon.Hypergrid
                 UserAgentServiceConnector security = new UserAgentServiceConnector (url);
                 return security.VerifyAgent (circuit.SessionID, circuit.ServiceSessionID);
             }
-            else
-                MainConsole.Instance.DebugFormat ("[HG ENTITY TRANSFER MODULE]: Agent {0} {1} does not have a HomeURI OH NO!", circuit.firstname, circuit.lastname);
+            MainConsole.Instance.DebugFormat ("[HG ENTITY TRANSFER MODULE]: Agent {0} {1} does not have a HomeURI OH NO!", circuit.firstname, circuit.lastname);
             return VerifyAgent (circuit.SessionID, circuit.ServiceSessionID);
         }
 
@@ -378,7 +375,7 @@ namespace Aurora.Addon.Hypergrid
             if (HGUtil.ParseUniversalUserIdentifier (friend.Friend, out FriendToInform, out url, out first, out last, out secret))
             {
                 UserAgentServiceConnector connector = new UserAgentServiceConnector (url);
-                List<UUID> informedFriends = connector.StatusNotification (new List<string> (new string[1] { FriendToInform.ToString () }),
+                List<UUID> informedFriends = connector.StatusNotification (new List<string> (new[] { FriendToInform.ToString () }),
                     userID, online);
                 return informedFriends.Count > 0;
             }
@@ -407,6 +404,7 @@ namespace Aurora.Addon.Hypergrid
                 if (HGUtil.ParseUniversalUserIdentifier (uui, out localUserID, out tmp, out tmp, out tmp, out secret))
                 {
                     List<FriendInfo> friendInfos = m_FriendsService.GetFriends (localUserID);
+#if (!ISWIN)
                     foreach (FriendInfo finfo in friendInfos)
                     {
                         if (finfo.Friend.StartsWith (foreignUserID.ToString ()) && finfo.Friend.EndsWith (secret))
@@ -415,6 +413,10 @@ namespace Aurora.Addon.Hypergrid
                             usersToBeNotified.Add (localUserID.ToString ());
                         }
                     }
+                    
+#else
+                    usersToBeNotified.AddRange(from finfo in friendInfos where finfo.Friend.StartsWith(foreignUserID.ToString()) && finfo.Friend.EndsWith(secret) select localUserID.ToString());
+#endif
                 }
             }
 
@@ -453,8 +455,7 @@ namespace Aurora.Addon.Hypergrid
             {
                 return localFriendsOnline;
             }
-            else
-                return new List<UUID> ();
+            return new List<UUID> ();
         }
 
         public List<UUID> GetOnlineFriends (UUID foreignUserID, List<string> friends)
@@ -479,15 +480,19 @@ namespace Aurora.Addon.Hypergrid
                 if (HGUtil.ParseUniversalUserIdentifier (uui, out localUserID, out tmp, out tmp, out tmp, out secret))
                 {
                     List<FriendInfo> friendInfos = m_FriendsService.GetFriends (localUserID);
+#if (!ISWIN)
                     foreach (FriendInfo finfo in friendInfos)
                     {
-                        if (finfo.Friend.StartsWith (foreignUserID.ToString ()) && finfo.Friend.EndsWith (secret) &&
+                        if (finfo.Friend.StartsWith(foreignUserID.ToString()) && finfo.Friend.EndsWith(secret) &&
                             (finfo.TheirFlags & (int)FriendRights.CanSeeOnline) != 0 && (finfo.TheirFlags != -1))
                         {
                             // great!
-                            usersToBeNotified.Add (localUserID.ToString ());
+                            usersToBeNotified.Add(localUserID.ToString());
                         }
                     }
+#else
+                    usersToBeNotified.AddRange(from finfo in friendInfos where finfo.Friend.StartsWith(foreignUserID.ToString()) && finfo.Friend.EndsWith(secret) && (finfo.TheirFlags & (int) FriendRights.CanSeeOnline) != 0 && (finfo.TheirFlags != -1) select localUserID.ToString());
+#endif
                 }
             }
 
