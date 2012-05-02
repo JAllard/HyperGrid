@@ -29,15 +29,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
-using System.Reflection;
-
 using Nini.Config;
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
-using Aurora.Framework;
-using Aurora.DataManager;
 using Aurora.Simulation.Base;
 using Nwc.XmlRpc;
 using OpenMetaverse;
@@ -59,14 +55,14 @@ namespace Aurora.Addon.Hypergrid
 
         #region IService members
 
-        public void Initialize (IConfigSource config, IRegistryCore registry)
+        public void Initialize (IConfigSource config2, IRegistryCore registry2)
         {
         }
 
-        public void Start (IConfigSource config, IRegistryCore registry)
+        public void Start (IConfigSource config2, IRegistryCore registry2)
         {
-            this.config = config;
-            this.registry = registry;
+            config = config2;
+            registry = registry2;
         }
 
         public void FinishedStartup ()
@@ -138,8 +134,7 @@ namespace Aurora.Addon.Hypergrid
                 hash["position"] = position.ToString ();
                 hash["lookAt"] = lookAt.ToString ();
             }
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -158,8 +153,7 @@ namespace Aurora.Addon.Hypergrid
 
             Hashtable hash = new Hashtable ();
             hash["result"] = success.ToString ();
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -178,8 +172,7 @@ namespace Aurora.Addon.Hypergrid
 
             Hashtable hash = new Hashtable ();
             hash["result"] = success.ToString ();
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -198,8 +191,7 @@ namespace Aurora.Addon.Hypergrid
 
             Hashtable hash = new Hashtable ();
             hash["result"] = success.ToString ();
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -220,8 +212,7 @@ namespace Aurora.Addon.Hypergrid
 
             Hashtable hash = new Hashtable ();
             hash["result"] = "true";
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -240,11 +231,15 @@ namespace Aurora.Addon.Hypergrid
                 UUID userID = UUID.Zero;
                 UUID.TryParse (userID_str, out userID);
                 List<string> ids = new List<string> ();
+#if (!ISWIN)
                 foreach (object key in requestData.Keys)
                 {
-                    if (key is string && ((string)key).StartsWith ("friend_") && requestData[key] != null)
-                        ids.Add (requestData[key].ToString ());
+                    if (key is string && ((string)key).StartsWith("friend_") && requestData[key] != null)
+                        ids.Add(requestData[key].ToString());
                 }
+#else
+                ids.AddRange(from object key in requestData.Keys where key is string && ((string) key).StartsWith("friend_") && requestData[key] != null select requestData[key].ToString());
+#endif
                 bool online = false;
                 bool.TryParse (requestData["online"].ToString (), out online);
 
@@ -264,8 +259,7 @@ namespace Aurora.Addon.Hypergrid
 
             }
 
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -280,14 +274,18 @@ namespace Aurora.Addon.Hypergrid
             if (requestData.ContainsKey ("userID"))
             {
                 string userID_str = (string)requestData["userID"];
-                UUID userID = UUID.Zero;
+                UUID userID;
                 UUID.TryParse (userID_str, out userID);
                 List<string> ids = new List<string> ();
+#if (!ISWIN)
                 foreach (object key in requestData.Keys)
                 {
-                    if (key is string && ((string)key).StartsWith ("friend_") && requestData[key] != null)
-                        ids.Add (requestData[key].ToString ());
+                    if (key is string && ((string)key).StartsWith("friend_") && requestData[key] != null)
+                        ids.Add(requestData[key].ToString());
                 }
+#else
+                ids.AddRange(from object key in requestData.Keys where key is string && ((string) key).StartsWith("friend_") && requestData[key] != null select requestData[key].ToString());
+#endif
 
                 //List<UUID> online = m_HomeUsersService.GetOnlineFriends(userID, ids);
                 //if (online.Count > 0)
@@ -303,8 +301,7 @@ namespace Aurora.Addon.Hypergrid
                 //    hash["result"] = "No Friends Online";
             }
 
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -319,7 +316,7 @@ namespace Aurora.Addon.Hypergrid
             if (requestData.ContainsKey ("userID"))
             {
                 string userID_str = (string)requestData["userID"];
-                UUID userID = UUID.Zero;
+                UUID userID;
                 UUID.TryParse (userID_str, out userID);
 
                 Dictionary<string, object> serverURLs = m_HomeUsersService.GetServerURLs (userID);
@@ -332,8 +329,7 @@ namespace Aurora.Addon.Hypergrid
                     hash["result"] = "No Service URLs";
             }
 
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -353,12 +349,19 @@ namespace Aurora.Addon.Hypergrid
             if (m_VerifyCallers)
             {
                 authorized = false;
+#if (!ISWIN)
                 foreach (string s in m_AuthorizedCallers)
-                    if (s == remoteClient.Address.ToString ())
+                    if (s == remoteClient.Address.ToString())
                     {
                         authorized = true;
                         break;
                     }
+#else
+                if (m_AuthorizedCallers.Any(s => s == remoteClient.Address.ToString()))
+                {
+                    authorized = true;
+                }
+#endif
             }
 
             if (authorized)
@@ -369,7 +372,7 @@ namespace Aurora.Addon.Hypergrid
                 if (requestData.ContainsKey ("userID"))
                 {
                     string userID_str = (string)requestData["userID"];
-                    UUID userID = UUID.Zero;
+                    UUID userID;
                     UUID.TryParse (userID_str, out userID);
 
                     string url = m_HomeUsersService.LocateUser (userID);
@@ -380,8 +383,7 @@ namespace Aurora.Addon.Hypergrid
                 }
             }
 
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -407,7 +409,7 @@ namespace Aurora.Addon.Hypergrid
                 UUID.TryParse (userID_str, out userID);
 
                 string tuserID_str = (string)requestData["targetUserID"];
-                UUID targetUserID = UUID.Zero;
+                UUID targetUserID;
                 UUID.TryParse (tuserID_str, out targetUserID);
                 string uui = m_HomeUsersService.GetUUI (userID, targetUserID);
                 if (uui != string.Empty)
@@ -416,8 +418,7 @@ namespace Aurora.Addon.Hypergrid
                     hash["result"] = "User unknown";
             }
 
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }

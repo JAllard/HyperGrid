@@ -24,8 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-using System;
-using System.Collections.Generic;
+
 using System.IO;
 using System.Xml;
 
@@ -66,11 +65,11 @@ namespace Aurora.Addon.Hypergrid
                 {
                     if (node.Name == "CreatorID")
                     {
-                        UUID uuid = UUID.Zero;
+                        UUID uuid;
                         UUID.TryParse (node.InnerText, out uuid);
                         creator = userService.GetUserAccount (scopeID, uuid);
                     }
-                    if (node.Name == "CreatorData" && node.InnerText != null && node.InnerText != string.Empty)
+                    if (node.Name == "CreatorData" && node.InnerText != string.Empty)
                         hasCreatorData = true;
 
                     //if (node.Name == "OwnerID")

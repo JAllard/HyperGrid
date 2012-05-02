@@ -29,7 +29,6 @@ using System;
 using System.Collections;
 using System.IO;
 using System.IO.Compression;
-using System.Reflection;
 using System.Net;
 using System.Text;
 using OpenSim.Services.Interfaces;
@@ -38,9 +37,6 @@ using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
-using Nini.Config;
-using Aurora.Framework;
-using Aurora.DataManager;
 using Aurora.Simulation.Base;
 
 namespace Aurora.Addon.Hypergrid
@@ -48,7 +44,7 @@ namespace Aurora.Addon.Hypergrid
     public class GatekeeperAgentHandler : BaseStreamHandler
     {
         private ISimulationService m_SimulationService;
-        private IGatekeeperService m_GatekeeperService;
+        private readonly IGatekeeperService m_GatekeeperService;
         protected bool m_Proxy = false;
 
         public GatekeeperAgentHandler (IGatekeeperService gatekeeper, ISimulationService service, bool proxy) :
@@ -83,11 +79,7 @@ namespace Aurora.Addon.Hypergrid
             keysvals.Add ("headers", headervals);
             keysvals.Add ("querystringkeys", querystringkeys);
 
-            Stream inputStream;
-            if (httpRequest.ContentType == "application/x-gzip")
-                inputStream = new GZipStream (request, CompressionMode.Decompress);
-            else
-                inputStream = request;
+            Stream inputStream = httpRequest.ContentType == "application/x-gzip" ? new GZipStream (request, CompressionMode.Decompress) : request;
 
             Encoding encoding = Encoding.UTF8;
             StreamReader reader = new StreamReader (inputStream, encoding);
@@ -151,11 +143,8 @@ namespace Aurora.Addon.Hypergrid
             if (args.ContainsKey ("teleport_flags") && args["teleport_flags"] != null)
                 teleportFlags = args["teleport_flags"].AsUInteger ();
 
-            GridRegion destination = new GridRegion ();
-            destination.RegionID = uuid;
-            destination.RegionLocX = x;
-            destination.RegionLocY = y;
-            destination.RegionName = regionname;
+            GridRegion destination = new GridRegion
+                                         {RegionID = uuid, RegionLocX = x, RegionLocY = y, RegionName = regionname};
 
             AgentCircuitData aCircuit = new AgentCircuitData ();
             try

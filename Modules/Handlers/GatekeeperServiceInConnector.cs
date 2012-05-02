@@ -25,12 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System;
-using System.Collections.Generic;
-using System.Reflection;
 using Nini.Config;
 using Aurora.Framework;
-using Aurora.DataManager;
 using Aurora.Simulation.Base;
 using OpenSim.Services.Interfaces;
 using Aurora.Framework.Servers.HttpServer;
@@ -61,7 +57,7 @@ namespace Aurora.Addon.Hypergrid
             if (gridConfig != null)
             {
                 m_Proxy = gridConfig.GetBoolean ("HasProxy", false);
-                enabled = gridConfig.GetBoolean ("Enabled", enabled);
+                enabled = gridConfig.GetBoolean ("Enabled", false);
             }
             if (!enabled)
                 return;

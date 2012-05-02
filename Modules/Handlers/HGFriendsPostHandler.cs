@@ -27,13 +27,8 @@
 
 using Nini.Config;
 using System;
-using System.Reflection;
 using System.IO;
-using System.Net;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml;
-using System.Xml.Serialization;
 using System.Collections.Generic;
 using OpenSim.Services.Interfaces;
 using FriendInfo = OpenSim.Services.Interfaces.FriendInfo;
@@ -71,8 +66,8 @@ namespace Aurora.Addon.Hypergrid
 
     public class HGFriendsServerPostHandler : BaseStreamHandler
     {
-        private IFriendsService m_FriendsService;
-        private IUserAgentService m_UserAgentService;
+        private readonly IFriendsService m_FriendsService;
+        private readonly IUserAgentService m_UserAgentService;
 
         public HGFriendsServerPostHandler (IFriendsService service, IUserAgentService uservice) :
             base ("POST", "/hgfriends")
@@ -176,17 +171,20 @@ namespace Aurora.Addon.Hypergrid
 
             // If the friendship already exists, return fail
             List<FriendInfo> finfos = m_FriendsService.GetFriends (friend.PrincipalID);
+#if (!ISWIN)
             foreach (FriendInfo finfo in finfos)
-                if (finfo.Friend.StartsWith (friendID.ToString ()))
-                    return FailureResult ();
-
+                if (finfo.Friend.StartsWith(friendID.ToString()))
+                    return FailureResult();
+#else
+            if (finfos.Any(finfo => finfo.Friend.StartsWith(friendID.ToString())))
+                return FailureResult();
+#endif
             // the user needs to confirm when he gets home
             bool success = m_FriendsService.StoreFriend (friend.PrincipalID, friend.Friend, 0);
 
             if (success)
                 return SuccessResult ();
-            else
-                return FailureResult ();
+            return FailureResult ();
         }
 
         byte[] DeleteFriendship (Dictionary<string, object> request)
@@ -328,8 +326,7 @@ namespace Aurora.Addon.Hypergrid
         private byte[] DocToBytes (XmlDocument doc)
         {
             MemoryStream ms = new MemoryStream ();
-            XmlTextWriter xw = new XmlTextWriter (ms, null);
-            xw.Formatting = Formatting.Indented;
+            XmlTextWriter xw = new XmlTextWriter(ms, null) {Formatting = Formatting.Indented};
             doc.WriteTo (xw);
             xw.Flush ();
 

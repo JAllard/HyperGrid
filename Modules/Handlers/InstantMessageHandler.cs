@@ -29,13 +29,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
-using System.Reflection;
-
 using Nini.Config;
 using Aurora.Framework;
 using OpenSim.Services.Interfaces;
 using Aurora.Framework.Servers.HttpServer;
-using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using Aurora.Simulation.Base;
 
 using Nwc.XmlRpc;
@@ -59,19 +56,12 @@ namespace Aurora.Addon.Hypergrid
                 UUID toAgentID = UUID.Zero;
                 UUID imSessionID = UUID.Zero;
                 uint timestamp = 0;
-                string fromAgentName = "";
-                string message = "";
-                byte dialog = (byte)0;
                 bool fromGroup = false;
-                byte offline = (byte)0;
                 uint ParentEstateID = 0;
                 Vector3 Position = Vector3.Zero;
                 UUID RegionID = UUID.Zero;
                 byte[] binaryBucket = new byte[0];
 
-                float pos_x = 0;
-                float pos_y = 0;
-                float pos_z = 0;
                 //MainConsole.Instance.Info("Processing IM");
 
 
@@ -106,13 +96,12 @@ namespace Aurora.Addon.Hypergrid
                     {
                     }
 
-                    fromAgentName = (string)requestData["from_agent_name"];
-                    message = (string)requestData["message"];
-                    if (message == null)
-                        message = string.Empty;
+                    string fromAgentName = (string)requestData["from_agent_name"];
+                    string message = (string)requestData["message"] ?? string.Empty;
 
                     // Bytes don't transfer well over XMLRPC, so, we Base64 Encode them.
                     string requestData1 = (string)requestData["dialog"];
+                    byte dialog = (byte)0;
                     if (string.IsNullOrEmpty (requestData1))
                     {
                         dialog = 0;
@@ -127,6 +116,7 @@ namespace Aurora.Addon.Hypergrid
                         fromGroup = true;
 
                     string requestData2 = (string)requestData["offline"];
+                    byte offline = (byte)0;
                     if (String.IsNullOrEmpty (requestData2))
                     {
                         offline = 0;
@@ -151,37 +141,35 @@ namespace Aurora.Addon.Hypergrid
                     {
                     }
 
+                    float pos_x = 0;
                     float.TryParse ((string)requestData["position_x"], out pos_x);
+                    float pos_y = 0;
                     float.TryParse ((string)requestData["position_y"], out pos_y);
+                    float pos_z = 0;
                     float.TryParse ((string)requestData["position_z"], out pos_z);
 
                     Position = new Vector3 (pos_x, pos_y, pos_z);
 
                     string requestData3 = (string)requestData["binary_bucket"];
-                    if (string.IsNullOrEmpty (requestData3))
-                    {
-                        binaryBucket = new byte[0];
-                    }
-                    else
-                    {
-                        binaryBucket = Convert.FromBase64String (requestData3);
-                    }
+                    binaryBucket = string.IsNullOrEmpty (requestData3) ? new byte[0] : Convert.FromBase64String (requestData3);
 
                     // Create a New GridInstantMessageObject the the data
-                    GridInstantMessage gim = new GridInstantMessage ();
-                    gim.fromAgentID = fromAgentID;
-                    gim.fromAgentName = fromAgentName;
-                    gim.fromGroup = fromGroup;
-                    gim.imSessionID = imSessionID;
-                    gim.RegionID = RegionID;
-                    gim.timestamp = timestamp;
-                    gim.toAgentID = toAgentID;
-                    gim.message = message;
-                    gim.dialog = dialog;
-                    gim.offline = offline;
-                    gim.ParentEstateID = ParentEstateID;
-                    gim.Position = Position;
-                    gim.binaryBucket = binaryBucket;
+                    GridInstantMessage gim = new GridInstantMessage
+                                                 {
+                                                     fromAgentID = fromAgentID,
+                                                     fromAgentName = fromAgentName,
+                                                     fromGroup = fromGroup,
+                                                     imSessionID = imSessionID,
+                                                     RegionID = RegionID,
+                                                     timestamp = timestamp,
+                                                     toAgentID = toAgentID,
+                                                     message = message,
+                                                     dialog = dialog,
+                                                     offline = offline,
+                                                     ParentEstateID = ParentEstateID,
+                                                     Position = Position,
+                                                     binaryBucket = binaryBucket
+                                                 };
 
                     successful = SendIM (gim);
                 }
@@ -269,13 +257,12 @@ namespace Aurora.Addon.Hypergrid
         /// <summary>
         /// This actually does the XMLRPC Request
         /// </summary>
-        /// <param name="reginfo">RegionInfo we pull the data out of to send the request to</param>
+        /// <param name="httpInfo">RegionInfo we pull the data out of to send the request to</param>
         /// <param name="xmlrpcdata">The Instant Message data Hashtable</param>
         /// <returns>Bool if the message was successfully delivered at the other side.</returns>
         protected virtual bool doIMSending (string httpInfo, Hashtable xmlrpcdata)
         {
-            ArrayList SendParams = new ArrayList ();
-            SendParams.Add (xmlrpcdata);
+            ArrayList SendParams = new ArrayList {xmlrpcdata};
             XmlRpcRequest GridReq = new XmlRpcRequest ("grid_instant_message", SendParams);
             try
             {
@@ -287,11 +274,9 @@ namespace Aurora.Addon.Hypergrid
                 {
                     if ((string)responseData["success"] == "TRUE")
                         return true;
-                    else
-                        return false;
-                }
-                else
                     return false;
+                }
+                return false;
             }
             catch (WebException e)
             {
@@ -324,7 +309,7 @@ namespace Aurora.Addon.Hypergrid
             bool enabled = false;
             if (imConfig != null)
             {
-                enabled = imConfig.GetBoolean ("Enabled", enabled);
+                enabled = imConfig.GetBoolean ("Enabled", false);
                 port = imConfig.GetUInt ("Port", port);
             }
             if (!enabled)

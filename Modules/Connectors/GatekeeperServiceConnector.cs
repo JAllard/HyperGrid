@@ -27,13 +27,10 @@
 
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Net;
-using System.Reflection;
 using Aurora.Framework;
-using Aurora.DataManager;
 using Aurora.Simulation.Base;
 using OpenMetaverse;
 using OpenMetaverse.Imaging;
@@ -47,12 +44,11 @@ namespace Aurora.Addon.Hypergrid
 {
     public class GatekeeperServiceConnector : SimulationServiceConnector
     {
-        private static UUID m_HGMapImage = new UUID ("00000000-0000-1111-9999-000000000013");
+        private static readonly UUID m_HGMapImage = new UUID ("00000000-0000-1111-9999-000000000013");
 
-        private IAssetService m_AssetService;
+        private readonly IAssetService m_AssetService;
 
         public GatekeeperServiceConnector ()
-            : base ()
         {
         }
 
@@ -157,7 +153,6 @@ namespace Aurora.Addon.Hypergrid
 
             UUID mapTile = m_HGMapImage;
             string filename = string.Empty;
-            Bitmap bitmap = null;
             try
             {
                 WebClient c = new WebClient ();
@@ -172,15 +167,15 @@ namespace Aurora.Addon.Hypergrid
                 else
                     MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE CONNECTOR]: using cached image");
 
-                bitmap = new Bitmap (filename);
+                Bitmap bitmap = new Bitmap (filename);
                 //MainConsole.Instance.Debug("Size: " + m.PhysicalDimension.Height + "-" + m.PhysicalDimension.Width);
                 byte[] imageData = OpenJPEG.EncodeFromImage (bitmap, true);
-                AssetBase ass = new AssetBase (UUID.Random (), "region " + name, AssetType.Texture, regionID);
+                AssetBase ass = new AssetBase(UUID.Random(), "region " + name, AssetType.Texture, regionID)
+                                    {Data = imageData};
 
                 // !!! for now
                 //info.RegionSettings.TerrainImageID = ass.FullID;
 
-                ass.Data = imageData;
 
                 mapTile = ass.ID;
 
@@ -337,7 +332,7 @@ namespace Aurora.Addon.Hypergrid
             }
             catch (Exception e)
             {
-                MainConsole.Instance.Warn ("[REMOTE SIMULATION CONNECTOR]: CreateAgent failed with exception: " + e.ToString ());
+                MainConsole.Instance.Warn ("[REMOTE SIMULATION CONNECTOR]: CreateAgent failed with exception: " + e);
                 reason = e.Message;
             }
 

@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using Aurora.Framework;
 using Aurora.Framework.Capabilities;
-using Aurora.Simulation.Base;
 using OpenSim.Services.MessagingService;
 using Nini.Config;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
-using System.IO;
 using System.Net;
 using System.Threading;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
@@ -70,7 +66,7 @@ namespace Aurora.Addon.Hypergrid
                 ICapsService capsService = m_registry.RequestModuleInterface<ICapsService> ();
                 IClientCapsService clientCaps = capsService.GetClientCapsService (AgentID);
                 GridRegion originalDest = neighbor;
-                if ((neighbor.Flags & (int)Aurora.Framework.RegionFlags.Hyperlink) == (int)Aurora.Framework.RegionFlags.Hyperlink)
+                if ((neighbor.Flags & (int)Framework.RegionFlags.Hyperlink) == (int)Framework.RegionFlags.Hyperlink)
                 {
                     neighbor = GetFinalDestination (neighbor);
                     if (neighbor == null || neighbor.RegionHandle == 0)
@@ -123,7 +119,7 @@ namespace Aurora.Addon.Hypergrid
                 }
                 bool regionAccepted = false;
                 int requestedUDPPort = 0;
-                if ((originalDest.Flags & (int)Aurora.Framework.RegionFlags.Hyperlink) == (int)Aurora.Framework.RegionFlags.Hyperlink)
+                if ((originalDest.Flags & (int)Framework.RegionFlags.Hyperlink) == (int)Framework.RegionFlags.Hyperlink)
                 {
                     if (circuitData.ServiceURLs == null || circuitData.ServiceURLs.Count == 0)
                     {
@@ -235,7 +231,7 @@ namespace Aurora.Addon.Hypergrid
             IGridService GridService = m_registry.RequestModuleInterface<IGridService> ();
             int flags = GridService.GetRegionFlags (UUID.Zero, region.RegionID);
             MainConsole.Instance.DebugFormat ("[HG ENTITY TRANSFER MODULE]: region {0} flags: {1}", region.RegionID, flags);
-            if ((flags & (int)Aurora.Framework.RegionFlags.Hyperlink) != 0)
+            if ((flags & (int)Framework.RegionFlags.Hyperlink) != 0)
             {
                 MainConsole.Instance.DebugFormat ("[HG ENTITY TRANSFER MODULE]: Destination region {0} is hyperlink", region.RegionID);
                 GridRegion real_destination = m_GatekeeperConnector.GetHyperlinkRegion (region, region.RegionID);

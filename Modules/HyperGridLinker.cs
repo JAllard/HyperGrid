@@ -30,7 +30,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Reflection;
 using System.Xml;
 
 using Nini.Config;
@@ -40,8 +39,6 @@ using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using OpenMetaverse;
 using Aurora.Simulation.Base;
-using Aurora.DataManager;
-using Aurora.Framework;
 
 namespace Aurora.Addon.Hypergrid
 {
@@ -60,7 +57,7 @@ namespace Aurora.Addon.Hypergrid
         protected bool m_Check4096 = true;
         protected string m_MapTileDirectory = "hgmaptiles";
         protected string m_ThisGatekeeper = string.Empty;
-        protected Uri m_ThisGatekeeperURI = null;
+        protected Uri m_ThisGatekeeperURI;
 
         // Hyperlink regions are hyperlinks on the map
         public readonly Dictionary<UUID, GridRegion> m_HyperlinkRegions = new Dictionary<UUID, GridRegion> ();
@@ -85,9 +82,11 @@ namespace Aurora.Addon.Hypergrid
                         else
                         {
                             // This shouldn't happen
-                            m_DefaultRegion = new GridRegion ();
-                            m_DefaultRegion.RegionLocX = Constants.RegionSize * 1000;
-                            m_DefaultRegion.RegionLocY = Constants.RegionSize * 1000;
+                            m_DefaultRegion = new GridRegion
+                                                  {
+                                                      RegionLocX = Constants.RegionSize*1000,
+                                                      RegionLocY = Constants.RegionSize*1000
+                                                  };
                             MainConsole.Instance.Error ("[HYPERGRID LINKER]: Something is wrong with this grid. It has no regions?");
                         }
                     }
@@ -150,7 +149,7 @@ namespace Aurora.Addon.Hypergrid
             m_AssetService = registry.RequestModuleInterface<IAssetService> ();
             m_GridService = registry.RequestModuleInterface<IGridService> ();
             m_GatekeeperConnector = new GatekeeperServiceConnector (m_AssetService);
-            m_Database = Aurora.DataManager.DataManager.RequestPlugin<IRegionData> ();
+            m_Database = DataManager.DataManager.RequestPlugin<IRegionData> ();
 
             MainConsole.Instance.Debug ("[HYPERGRID LINKER]: Loaded all services...");
         }
@@ -167,13 +166,13 @@ namespace Aurora.Addon.Hypergrid
         // from map search
         public GridRegion LinkRegion (UUID scopeID, string regionDescriptor)
         {
-            string reason = string.Empty;
+            string reason;
             int xloc = random.Next(0, Int16.MaxValue) * (int)Constants.RegionSize;
             int yloc = random.Next(0, Int16.MaxValue) * (int)Constants.RegionSize;
             return TryLinkRegionToCoords (scopeID, regionDescriptor, xloc, yloc, out reason);
         }
 
-        private static Random random = new Random ();
+        private static readonly Random random = new Random ();
 
         // From the command line link-region (obsolete) and the map
         public GridRegion TryLinkRegionToCoords (UUID scopeID, string mapName, int xloc, int yloc, out string reason)
@@ -183,23 +182,21 @@ namespace Aurora.Addon.Hypergrid
 
         public GridRegion TryLinkRegionToCoords (UUID scopeID, string mapName, int xloc, int yloc, UUID ownerID, out string reason)
         {
-            reason = string.Empty;
-            GridRegion regInfo = null;
+            GridRegion regInfo;
 
             if (!mapName.StartsWith ("http"))
             {
                 string host = "127.0.0.1";
-                string portstr;
                 string regionName = "";
                 uint port = 0;
-                string[] parts = mapName.Split (new char[] { ':' });
+                string[] parts = mapName.Split (new[] { ':' });
                 if (parts.Length >= 1)
                 {
                     host = parts[0];
                 }
                 if (parts.Length >= 2)
                 {
-                    portstr = parts[1];
+                    string portstr = parts[1];
                     //MainConsole.Instance.Debug("-- port = " + portstr);
                     if (!UInt32.TryParse (portstr, out port))
                         regionName = parts[1];
@@ -220,12 +217,12 @@ namespace Aurora.Addon.Hypergrid
             }
             else
             {
-                string[] parts = mapName.Split (new char[] { ' ' });
+                string[] parts = mapName.Split (new[] { ' ' });
                 string regionName = String.Empty;
                 if (parts.Length > 1)
                 {
                     regionName = mapName.Substring (parts[0].Length + 1);
-                    regionName = regionName.Trim (new char[] { '"' });
+                    regionName = regionName.Trim (new[] { '"' });
                 }
                 if (TryCreateLink (scopeID, xloc, yloc, regionName, 0, null, parts[0], ownerID, out regInfo, out reason))
                 {
@@ -245,27 +242,20 @@ namespace Aurora.Addon.Hypergrid
         public bool TryCreateLink (UUID scopeID, int xloc, int yloc, string remoteRegionName, uint externalPort, string externalHostName, string serverURI, UUID ownerID, out GridRegion regInfo, out string reason)
         {
             MainConsole.Instance.DebugFormat ("[HYPERGRID LINKER]: Link to {0} {1}, in {2}-{3}",
-                ((serverURI == null) ? (externalHostName + ":" + externalPort) : serverURI),
+                (serverURI ?? (externalHostName + ":" + externalPort)),
                 remoteRegionName, xloc / Constants.RegionSize, yloc / Constants.RegionSize);
 
-            reason = string.Empty;
-            Uri uri = null;
-
-            regInfo = new GridRegion ();
-            if (externalPort > 0)
-                regInfo.HttpPort = externalPort;
-            else
-                regInfo.HttpPort = 0;
-            if (externalHostName != null)
-                regInfo.ExternalHostName = externalHostName;
-            else
-                regInfo.ExternalHostName = "0.0.0.0";
+            regInfo = new GridRegion
+                          {
+                              HttpPort = externalPort > 0 ? externalPort : 0,
+                              ExternalHostName = externalHostName ?? "0.0.0.0"
+                          };
             if (serverURI != null)
             {
                 regInfo.ServerURI = serverURI;
                 try
                 {
-                    uri = new Uri (serverURI);
+                    Uri uri = new Uri (serverURI);
                     regInfo.ExternalHostName = uri.Host;
                     regInfo.HttpPort = (uint)uri.Port;
                 }
@@ -307,7 +297,7 @@ namespace Aurora.Addon.Hypergrid
 
             try
             {
-                regInfo.InternalEndPoint = new IPEndPoint (IPAddress.Parse ("0.0.0.0"), (int)0);
+                regInfo.InternalEndPoint = new IPEndPoint (IPAddress.Parse ("0.0.0.0"), 0);
             }
             catch (Exception e)
             {
@@ -318,9 +308,9 @@ namespace Aurora.Addon.Hypergrid
 
             // Finally, link it
             ulong handle = 0;
-            UUID regionID = UUID.Zero;
-            string externalName = string.Empty;
-            string imageURL = string.Empty;
+            UUID regionID;
+            string externalName;
+            string imageURL;
             if (!m_GatekeeperConnector.LinkRegion (regInfo, out regionID, out handle, out externalName, out imageURL, out reason))
                 return false;
             if (regionID == UUID.Zero)
@@ -350,10 +340,7 @@ namespace Aurora.Addon.Hypergrid
 
             regInfo.RegionID = regionID;
 
-            if (externalName == string.Empty)
-                regInfo.RegionName = regInfo.ServerURI;
-            else
-                regInfo.RegionName = externalName;
+            regInfo.RegionName = externalName == string.Empty ? regInfo.ServerURI : externalName;
 
             MainConsole.Instance.DebugFormat ("[HYPERGRID LINKER]: naming linked region {0}, handle {1}", regInfo.RegionName, handle.ToString ());
 
@@ -379,12 +366,10 @@ namespace Aurora.Addon.Hypergrid
             List<GridRegion> regions = m_Database.Get (mapName, m_ScopeID);
             if (regions != null && regions.Count > 0)
             {
-                Aurora.Framework.RegionFlags rflags = (Aurora.Framework.RegionFlags)regions[0].Flags;
-                if ((rflags & Aurora.Framework.RegionFlags.Hyperlink) != 0)
+                Framework.RegionFlags rflags = (Framework.RegionFlags)regions[0].Flags;
+                if ((rflags & Framework.RegionFlags.Hyperlink) != 0)
                 {
-                    regInfo = new GridRegion ();
-                    regInfo.RegionID = regions[0].RegionID;
-                    regInfo.ScopeID = m_ScopeID;
+                    regInfo = new GridRegion {RegionID = regions[0].RegionID, ScopeID = m_ScopeID};
                 }
             }
 
@@ -393,17 +378,16 @@ namespace Aurora.Addon.Hypergrid
                 RemoveHyperlinkRegion (regInfo.RegionID);
                 return true;
             }
-            else
-            {
-                MainConsole.Instance.InfoFormat ("[HYPERGRID LINKER]: Region {0} not found", mapName);
-                return false;
-            }
+            MainConsole.Instance.InfoFormat ("[HYPERGRID LINKER]: Region {0} not found", mapName);
+            return false;
         }
 
         /// <summary>
         /// Cope with this viewer limitation.
         /// </summary>
-        /// <param name="regInfo"></param>
+        /// <param name="realHandle"></param>
+        /// <param name="x"> </param>
+        /// <param name="y"> </param>
         /// <returns></returns>
         public bool Check4096 (ulong realHandle, out uint x, out uint y)
         {
@@ -433,24 +417,18 @@ namespace Aurora.Addon.Hypergrid
             {
                 return false;
             }
-            else
-            {
-                // Check for regions which are not linked regions
-                List<GridRegion> hyperlinks = m_Database.Get (Aurora.Framework.RegionFlags.Hyperlink);
-                regions.RemoveAll (delegate (GridRegion r)
-                {
-                    return hyperlinks.Contains(r);
-                });
-                if (regions.Count == 0)
-                    return false;
-            }
+            // Check for regions which are not linked regions
+            List<GridRegion> hyperlinks = m_Database.Get (Framework.RegionFlags.Hyperlink);
+            regions.RemoveAll (hyperlinks.Contains);
+            if (regions.Count == 0)
+                return false;
 
             return true;
         }
 
         private void AddHyperlinkRegion (GridRegion regionInfo, ulong regionHandle)
         {
-            int flags = (int)Aurora.Framework.RegionFlags.Hyperlink + (int)Aurora.Framework.RegionFlags.NoDirectLogin + (int)Aurora.Framework.RegionFlags.RegionOnline;
+            const int flags = (int)Framework.RegionFlags.Hyperlink + (int)Framework.RegionFlags.NoDirectLogin + (int)Framework.RegionFlags.RegionOnline;
             regionInfo.Flags = flags;
 
             m_Database.Store (regionInfo);
@@ -477,7 +455,7 @@ namespace Aurora.Addon.Hypergrid
                 MainConsole.Instance.Output ("Syntax: show hyperlinks");
                 return;
             }
-            List<GridRegion> regions = m_Database.Get (Aurora.Framework.RegionFlags.Hyperlink);
+            List<GridRegion> regions = m_Database.Get (Framework.RegionFlags.Hyperlink);
             if (regions == null || regions.Count < 1)
             {
                 MainConsole.Instance.Output ("No hyperlinks");
@@ -512,15 +490,13 @@ namespace Aurora.Addon.Hypergrid
 
         private void RunLinkRegionCommand (string[] cmdparams)
         {
-            int xloc, yloc;
-            string serverURI;
             string remoteName = null;
-            xloc = Convert.ToInt32 (cmdparams[0]) * (int)Constants.RegionSize;
-            yloc = Convert.ToInt32 (cmdparams[1]) * (int)Constants.RegionSize;
-            serverURI = cmdparams[2];
+            int xloc = Convert.ToInt32 (cmdparams[0]) * Constants.RegionSize;
+            int yloc = Convert.ToInt32 (cmdparams[1]) * Constants.RegionSize;
+            string serverURI = cmdparams[2];
             if (cmdparams.Length > 3)
                 remoteName = string.Join (" ", cmdparams, 3, cmdparams.Length - 3);
-            string reason = string.Empty;
+            string reason;
             GridRegion regInfo;
             if (TryCreateLink (UUID.Zero, xloc, yloc, remoteName, 0, null, serverURI, UUID.Zero, out regInfo, out reason))
                 MainConsole.Instance.Output ("Hyperlink established");
@@ -607,9 +583,9 @@ namespace Aurora.Addon.Hypergrid
                     }
 
                     // Convert cell coordinates given by the user to meters
-                    xloc = xloc * (int)Constants.RegionSize;
-                    yloc = yloc * (int)Constants.RegionSize;
-                    string reason = string.Empty;
+                    xloc = xloc * Constants.RegionSize;
+                    yloc = yloc * Constants.RegionSize;
+                    string reason;
                     if (TryCreateLink (UUID.Zero, xloc, yloc, string.Empty, externalPort, externalHostName, UUID.Zero, out regInfo, out reason))
                     {
                         // What is this? The GridRegion instance will be discarded anyway,
@@ -622,7 +598,6 @@ namespace Aurora.Addon.Hypergrid
                         //}
                     }
                 }
-                return;
             }
             else if (command.Equals ("unlink-region"))
             {
@@ -665,14 +640,21 @@ namespace Aurora.Addon.Hypergrid
                     bool skip = false;
                     if ((excludeSections != null) && (excludeSections.Length > 0))
                     {
+#if (!ISWIN)
                         for (int n = 0; n < excludeSections.Length; n++)
                         {
-                            if (excludeSections[n] == cs.Configs[i].Name.ToLower ())
+                            if (excludeSections[n] == cs.Configs[i].Name.ToLower())
                             {
                                 skip = true;
                                 break;
                             }
                         }
+#else
+                        if (excludeSections.Any(t => t == cs.Configs[i].Name.ToLower()))
+                        {
+                            skip = true;
+                        }
+#endif
                     }
                     if (!skip)
                     {
@@ -689,18 +671,12 @@ namespace Aurora.Addon.Hypergrid
 
         private void ReadLinkFromConfig (IConfig config)
         {
-            GridRegion regInfo;
-            int xloc, yloc;
-            uint externalPort;
-            string externalHostName;
-            uint realXLoc, realYLoc;
-
-            xloc = Convert.ToInt32 (config.GetString ("xloc", "0"));
-            yloc = Convert.ToInt32 (config.GetString ("yloc", "0"));
-            externalPort = Convert.ToUInt32 (config.GetString ("externalPort", "0"));
-            externalHostName = config.GetString ("externalHostName", "");
-            realXLoc = Convert.ToUInt32 (config.GetString ("real-xloc", "0"));
-            realYLoc = Convert.ToUInt32 (config.GetString ("real-yloc", "0"));
+            int xloc = Convert.ToInt32 (config.GetString ("xloc", "0"));
+            int yloc = Convert.ToInt32 (config.GetString ("yloc", "0"));
+            uint externalPort = Convert.ToUInt32 (config.GetString ("externalPort", "0"));
+            string externalHostName = config.GetString ("externalHostName", "");
+            uint realXLoc = Convert.ToUInt32 (config.GetString ("real-xloc", "0"));
+            uint realYLoc = Convert.ToUInt32 (config.GetString ("real-yloc", "0"));
 
             if (m_enableAutoMapping)
             {
@@ -712,9 +688,10 @@ namespace Aurora.Addon.Hypergrid
                 (((realXLoc - xloc < 3896) || (xloc - realXLoc < 3896)) &&
                  ((realYLoc - yloc < 3896) || (yloc - realYLoc < 3896))))
             {
-                xloc = xloc * (int)Constants.RegionSize;
-                yloc = yloc * (int)Constants.RegionSize;
-                string reason = string.Empty;
+                xloc = xloc * Constants.RegionSize;
+                yloc = yloc * Constants.RegionSize;
+                string reason;
+                GridRegion regInfo;
                 if (TryCreateLink (UUID.Zero, xloc, yloc, string.Empty, externalPort, externalHostName, UUID.Zero, out regInfo, out reason))
                 {
                     regInfo.RegionName = config.GetString ("localName", "");
@@ -742,17 +719,16 @@ namespace Aurora.Addon.Hypergrid
 
         public GridRegion GetRegionForGrid (string regionName, string url)
         {
-            int xloc = random.Next (0, Int16.MaxValue) * (int)Constants.RegionSize;
-            int yloc = random.Next (0, Int16.MaxValue) * (int)Constants.RegionSize;
+            int xloc = random.Next (0, Int16.MaxValue) * Constants.RegionSize;
+            int yloc = random.Next (0, Int16.MaxValue) * Constants.RegionSize;
             string host = "127.0.0.1";
-            string portstr;
             uint port = 0;
-            string[] parts = url.Split (new char[] { ':' });
+            string[] parts = url.Split (new[] { ':' });
             if (parts.Length >= 1)
                 host = parts[0];
             if (parts.Length >= 2)
             {
-                portstr = parts[1];
+                string portstr = parts[1];
                 UInt32.TryParse (portstr, out port);
             }
             GridRegion r;

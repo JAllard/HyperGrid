@@ -167,48 +167,44 @@ namespace Aurora.Addon.Hypergrid
             // Let's wait for the response
             //MainConsole.Instance.Info("[USER AGENT CONNECTOR]: Waiting for a reply after DoCreateChildAgentCall");
 
-            WebResponse webResponse = null;
             StreamReader sr = null;
             try
             {
-                webResponse = AgentCreateRequest.GetResponse ();
-                if (webResponse == null)
-                {
-                    MainConsole.Instance.Info ("[USER AGENT CONNECTOR]: Null reply on DoCreateChildAgentCall post");
-                }
-                else
-                {
+                WebResponse webResponse = AgentCreateRequest.GetResponse();
 
-                    sr = new StreamReader (webResponse.GetResponseStream ());
-                    string response = sr.ReadToEnd ().Trim ();
-                    MainConsole.Instance.InfoFormat ("[USER AGENT CONNECTOR]: DoCreateChildAgentCall reply was {0} ", response);
 
-                    if (!String.IsNullOrEmpty (response))
+                sr = new StreamReader(webResponse.GetResponseStream());
+                string response = sr.ReadToEnd().Trim();
+                MainConsole.Instance.InfoFormat("[USER AGENT CONNECTOR]: DoCreateChildAgentCall reply was {0} ",
+                                                response);
+
+                if (!String.IsNullOrEmpty(response))
+                {
+                    try
                     {
-                        try
-                        {
-                            // we assume we got an OSDMap back
-                            OSDMap r = Util.GetOSDMap (response);
-                            bool success = r["success"].AsBoolean ();
-                            reason = r["reason"].AsString ();
-                            return success;
-                        }
-                        catch (NullReferenceException e)
-                        {
-                            MainConsole.Instance.InfoFormat ("[USER AGENT CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", e.Message);
+                        // we assume we got an OSDMap back
+                        OSDMap r = Util.GetOSDMap(response);
+                        bool success = r["success"].AsBoolean();
+                        reason = r["reason"].AsString();
+                        return success;
+                    }
+                    catch (NullReferenceException e)
+                    {
+                        MainConsole.Instance.InfoFormat(
+                            "[USER AGENT CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", e.Message);
 
-                            // check for old style response
-                            if (response.ToLower ().StartsWith ("true"))
-                                return true;
+                        // check for old style response
+                        if (response.ToLower().StartsWith("true"))
+                            return true;
 
-                            return false;
-                        }
+                        return false;
                     }
                 }
+
             }
             catch (WebException ex)
             {
-                MainConsole.Instance.InfoFormat ("[USER AGENT CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", ex.Message);
+                MainConsole.Instance.InfoFormat("[USER AGENT CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", ex.Message);
                 reason = "Destination did not reply";
                 return false;
             }
@@ -241,21 +237,23 @@ namespace Aurora.Addon.Hypergrid
                 MainConsole.Instance.Debug ("[USER AGENT CONNECTOR]: PackAgentCircuitData failed with exception: " + e.Message);
             }
             // Add the input arguments
-            args["gatekeeper_serveruri"] = OSD.FromString (gatekeeper.ServerURI);
-            args["gatekeeper_host"] = OSD.FromString (gatekeeper.ExternalHostName);
-            args["gatekeeper_port"] = OSD.FromString (gatekeeper.HttpPort.ToString ());
-            args["destination_x"] = OSD.FromString (destination.RegionLocX.ToString ());
-            args["destination_y"] = OSD.FromString (destination.RegionLocY.ToString ());
-            args["destination_name"] = OSD.FromString (destination.RegionName);
-            args["destination_uuid"] = OSD.FromString (destination.RegionID.ToString ());
-            args["destination_serveruri"] = OSD.FromString (destination.ServerURI);
+            if (args != null)
+            {
+                args["gatekeeper_serveruri"] = OSD.FromString (gatekeeper.ServerURI);
+                args["gatekeeper_host"] = OSD.FromString (gatekeeper.ExternalHostName);
+                args["gatekeeper_port"] = OSD.FromString (gatekeeper.HttpPort.ToString ());
+                args["destination_x"] = OSD.FromString (destination.RegionLocX.ToString ());
+                args["destination_y"] = OSD.FromString (destination.RegionLocY.ToString ());
+                args["destination_name"] = OSD.FromString (destination.RegionName);
+                args["destination_uuid"] = OSD.FromString (destination.RegionID.ToString ());
+                args["destination_serveruri"] = OSD.FromString (destination.ServerURI);
 
-            // 10/3/2010
-            // I added the client_ip up to the regular AgentCircuitData, so this doesn't need to be here.
-            // This need cleaning elsewhere...
-            //if (ipaddress != null)
-            //    args["client_ip"] = OSD.FromString(ipaddress.Address.ToString());
-
+                // 10/3/2010
+                // I added the client_ip up to the regular AgentCircuitData, so this doesn't need to be here.
+                // This need cleaning elsewhere...
+                //if (ipaddress != null)
+                //    args["client_ip"] = OSD.FromString(ipaddress.Address.ToString());
+            }
             return args;
         }
 
@@ -798,8 +796,8 @@ namespace Aurora.Addon.Hypergrid
             catch (Exception e)
             {
                 MainConsole.Instance.ErrorFormat ("[USER AGENT CONNECTOR]: Got exception on GetBoolResponse response.");
-                if (hash.ContainsKey ("result") && hash["result"] != null)
-                    MainConsole.Instance.ErrorFormat ("Reply was ", (string)hash["result"]);
+                if (hash != null && (hash.ContainsKey ("result") && hash["result"] != null))
+                    MainConsole.Instance.ErrorFormat ("Reply was ", hash["result"]);
                 reason = "Exception: " + e.Message;
                 return false;
             }

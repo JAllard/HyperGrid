@@ -47,7 +47,7 @@ namespace Aurora.Addon.Hypergrid
     /// </summary>
     public class HGInventoryService : InventoryService, IExternalInventoryService
     {
-        private IRegistryCore m_registry;
+        private new IRegistryCore m_registry;
 
         public override void Initialize (IConfigSource config, IRegistryCore registry)
         {

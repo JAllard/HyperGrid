@@ -24,13 +24,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Net;
-using System.Reflection;
 
-using OpenSim.Services.Interfaces;
+using System.Collections;
+using System.Net;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 using Nwc.XmlRpc;
@@ -41,7 +37,7 @@ namespace Aurora.Addon.Hypergrid
 {
     public class HypergridHandlers
     {
-        private IGatekeeperService m_GatekeeperService;
+        private readonly IGatekeeperService m_GatekeeperService;
 
         public HypergridHandlers (IGatekeeperService gatekeeper)
         {
@@ -53,15 +49,14 @@ namespace Aurora.Addon.Hypergrid
         /// Someone wants to link to us
         /// </summary>
         /// <param name="request"></param>
+        /// <param name="remoteClient"> </param>
         /// <returns></returns>
         public XmlRpcResponse LinkRegionRequest (XmlRpcRequest request, IPEndPoint remoteClient)
         {
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
-            string name = (string)requestData["region_name"];
-            if (name == null)
-                name = string.Empty;
+            string name = (string)requestData["region_name"] ?? string.Empty;
 
             UUID regionID = UUID.Zero;
             string externalName = string.Empty;
@@ -78,8 +73,7 @@ namespace Aurora.Addon.Hypergrid
             hash["region_image"] = imageURL;
             hash["external_name"] = externalName;
 
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
         }
 
@@ -108,8 +102,7 @@ namespace Aurora.Addon.Hypergrid
                 hash["http_port"] = regInfo.HttpPort.ToString ();
                 hash["internal_port"] = regInfo.InternalEndPoint.Port.ToString ();
             }
-            XmlRpcResponse response = new XmlRpcResponse ();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
         }
     }

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Text;
-using Aurora.Framework;
-using Aurora.Simulation.Base;
+﻿using Aurora.Framework;
 using OpenMetaverse;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
