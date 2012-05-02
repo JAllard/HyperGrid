@@ -66,6 +66,11 @@ namespace OpenSim.Services.Connectors
             return null;
         }
 
+        public InventoryFolderBase GetFolderByOwnerAndName(UUID userID, string FolderName)
+        {
+            return null;
+        }
+
         public virtual List<InventoryFolderBase> GetRootFolders(UUID principalID)
         {
             return new List<InventoryFolderBase>(new InventoryFolderBase[1] { GetRootFolder(principalID) });
