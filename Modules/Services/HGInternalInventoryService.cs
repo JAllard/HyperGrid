@@ -28,6 +28,7 @@
 using System.Collections.Generic;
 using OpenMetaverse;
 using Nini.Config;
+using OpenMetaverse.StructuredData;
 using OpenSim.Services.Interfaces;
 using OpenSim.Services.InventoryService;
 using Aurora.Framework;
@@ -71,6 +72,10 @@ namespace Aurora.Addon.Hypergrid
         [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override bool AddItem(InventoryItemBase item)
         {
+            object remoteValue = DoRemote(item);
+            if (remoteValue != null || m_doRemoteOnly)
+                return remoteValue != null && (bool)remoteValue;
+
             string invserverURL = "";
             if (GetHandlers.GetIsForeign (item.Owner, "InventoryServerURI", m_registry, out invserverURL))
             {
@@ -84,6 +89,10 @@ namespace Aurora.Addon.Hypergrid
         [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override bool AddFolder(InventoryFolderBase folder)
         {
+            object remoteValue = DoRemote(folder);
+            if (remoteValue != null || m_doRemoteOnly)
+                return remoteValue != null && (bool)remoteValue;
+
             string invserverURL = "";
             if (GetHandlers.GetIsForeign (folder.Owner, "InventoryServerURI", m_registry, out invserverURL))
             {
@@ -96,6 +105,10 @@ namespace Aurora.Addon.Hypergrid
         [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override InventoryFolderBase GetFolderForType(UUID principalID, InventoryType invType, AssetType type)
         {
+            object remoteValue = DoRemote(principalID, invType, type);
+            if (remoteValue != null || m_doRemoteOnly)
+                return (InventoryFolderBase)remoteValue;
+
             string invserverURL = "";
             if (GetHandlers.GetIsForeign (principalID, "InventoryServerURI", m_registry, out invserverURL))
             {
@@ -108,6 +121,10 @@ namespace Aurora.Addon.Hypergrid
         [CanBeReflected(ThreatLevel = ThreatLevel.Medium)]
         public override InventoryFolderBase GetRootFolder(UUID principalID)
         {
+            object remoteValue = DoRemote(principalID);
+            if (remoteValue != null || m_doRemoteOnly)
+                return (InventoryFolderBase)remoteValue;
+
             string invserverURL = "";
             if (GetHandlers.GetIsForeign (principalID, "InventoryServerURI", m_registry, out invserverURL))
             {
@@ -120,6 +137,10 @@ namespace Aurora.Addon.Hypergrid
         [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override InventoryFolderBase GetFolder(InventoryFolderBase folder)
         {
+            object remoteValue = DoRemote(folder);
+            if (remoteValue != null || m_doRemoteOnly)
+                return (InventoryFolderBase)remoteValue;
+
             string invserverURL = "";
             if (GetHandlers.GetIsForeign (folder.Owner, "InventoryServerURI", m_registry, out invserverURL))
             {
@@ -132,6 +153,10 @@ namespace Aurora.Addon.Hypergrid
         [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public override InventoryItemBase GetItem(InventoryItemBase item)
         {
+            object remoteValue = DoRemote(item);
+            if (remoteValue != null || m_doRemoteOnly)
+                return (InventoryItemBase)remoteValue;
+
             string invServerURL = "";
             if (GetHandlers.GetIsForeign (item.Owner, "InventoryServerURI", m_registry, out invServerURL))
             {
@@ -170,8 +195,13 @@ namespace Aurora.Addon.Hypergrid
                 FetchAsset (assetServer, uuid);
         }
 
+        [CanBeReflected(ThreatLevel = ThreatLevel.Low)]
         public AssetBase FetchAsset (string url, UUID assetID)
         {
+            object remoteValue = DoRemote(url, assetID);
+            if (remoteValue != null || m_doRemoteOnly)
+                return (AssetBase)remoteValue;
+
             AssetBase asset = m_registry.RequestModuleInterface<IAssetService>().Get (url + "/" + assetID.ToString ());
             if (asset != null)
             {
