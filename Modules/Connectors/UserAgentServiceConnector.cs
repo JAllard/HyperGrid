@@ -98,7 +98,6 @@ namespace Aurora.Addon.Hypergrid
             MainConsole.Instance.DebugFormat ("[USER AGENT CONNECTOR]: UserAgentServiceConnector started for {0}", m_ServerURL);
         }
 
-
         // The Login service calls this interface with a non-null [client] ipaddress 
         public bool LoginAgentToGrid (AgentCircuitData aCircuit, GridRegion gatekeeper, GridRegion destination, IPEndPoint ipaddress, out string reason)
         {
@@ -165,11 +164,17 @@ namespace Aurora.Addon.Hypergrid
             // Let's wait for the response
             //MainConsole.Instance.Info("[USER AGENT CONNECTOR]: Waiting for a reply after DoCreateChildAgentCall");
 
+			WebResponse webResponse = null;
             StreamReader sr = null;
             try
             {
-                WebResponse webResponse = AgentCreateRequest.GetResponse();
-
+                webResponse = AgentCreateRequest.GetResponse();
+				if (webResponse == null)
+                {
+                    MainConsole.Instance.Info("[USER AGENT CONNECTOR]: Null reply on DoCreateChildAgentCall post");
+                }
+                else
+                {
 
                 sr = new StreamReader(webResponse.GetResponseStream());
                 string response = sr.ReadToEnd().Trim();
@@ -187,6 +192,7 @@ namespace Aurora.Addon.Hypergrid
                         return success;
                     }
                     catch (NullReferenceException e)
+
                     {
                         MainConsole.Instance.InfoFormat(
                             "[USER AGENT CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", e.Message);
@@ -199,7 +205,7 @@ namespace Aurora.Addon.Hypergrid
                     }
                 }
 
-            }
+            }}
             catch (WebException ex)
             {
                 MainConsole.Instance.InfoFormat("[USER AGENT CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", ex.Message);
@@ -215,6 +221,7 @@ namespace Aurora.Addon.Hypergrid
             return true;
 
         }
+        
 
 
         // The simulators call this interface
@@ -234,9 +241,10 @@ namespace Aurora.Addon.Hypergrid
             {
                 MainConsole.Instance.Debug ("[USER AGENT CONNECTOR]: PackAgentCircuitData failed with exception: " + e.Message);
             }
+
             // Add the input arguments
-            if (args != null)
-            {
+            
+			
                 args["gatekeeper_serveruri"] = OSD.FromString (gatekeeper.ServerURI);
                 args["gatekeeper_host"] = OSD.FromString (gatekeeper.ExternalHostName);
                 args["gatekeeper_port"] = OSD.FromString (gatekeeper.HttpPort.ToString ());
@@ -251,11 +259,12 @@ namespace Aurora.Addon.Hypergrid
                 // This need cleaning elsewhere...
                 //if (ipaddress != null)
                 //    args["client_ip"] = OSD.FromString(ipaddress.Address.ToString());
-            }
+            
             return args;
         }
 
         public void SetClientToken (UUID sessionID, string token)
+
         {
             // no-op
         }
@@ -331,6 +340,9 @@ namespace Aurora.Addon.Hypergrid
                         UInt32.TryParse ((string)hash["http_port"], out p);
                         region.HttpPort = p;
                     }
+					if (hash.ContainsKey("server_uri") && hash["server_uri"] != null)
+                        region.ServerURI = (string)hash["server_uri"];
+
                     if (hash["internal_port"] != null)
                     {
                         int p = 0;
@@ -369,6 +381,20 @@ namespace Aurora.Addon.Hypergrid
             return GetBoolResponse (request, out reason);
         }
 
+        public bool IsAgentComingHome(UUID sessionID, string thisGridExternalName)
+        {
+            Hashtable hash = new Hashtable();
+            hash["sessionID"] = sessionID.ToString();
+            hash["externalName"] = thisGridExternalName;
+
+            IList paramList = new ArrayList();
+            paramList.Add(hash);
+
+            XmlRpcRequest request = new XmlRpcRequest("agent_is_coming_home", paramList);
+            string reason = string.Empty;
+            return GetBoolResponse(request, out reason);
+        }
+
         public bool VerifyAgent (UUID sessionID, string token)
         {
             Hashtable hash = new Hashtable ();
@@ -382,6 +408,7 @@ namespace Aurora.Addon.Hypergrid
             string reason = string.Empty;
             return GetBoolResponse (request, out reason);
         }
+
 
         public bool VerifyAgent (AgentCircuitData circuit)
         {
@@ -447,6 +474,7 @@ namespace Aurora.Addon.Hypergrid
             {
                 response = request.Send (m_ServerURL, 6000);
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.DebugFormat ("[USER AGENT CONNECTOR]: Unable to contact remote server {0}", m_ServerURL);
@@ -485,6 +513,7 @@ namespace Aurora.Addon.Hypergrid
                 }
 
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.ErrorFormat ("[USER AGENT CONNECTOR]: Got exception on GetOnlineFriends response.");
@@ -493,6 +522,7 @@ namespace Aurora.Addon.Hypergrid
 
             return friendsOnline;
         }
+
 
         public List<UUID> GetOnlineFriends (UUID userID, List<string> friends)
         {
@@ -511,6 +541,7 @@ namespace Aurora.Addon.Hypergrid
             XmlRpcRequest request = new XmlRpcRequest ("get_online_friends", paramList);
             string reason = string.Empty;
 
+
             // Send and get reply
             List<UUID> online = new List<UUID> ();
             XmlRpcResponse response = null;
@@ -518,6 +549,7 @@ namespace Aurora.Addon.Hypergrid
             {
                 response = request.Send (m_ServerURL, 10000);
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.DebugFormat ("[USER AGENT CONNECTOR]: Unable to contact remote server {0}", m_ServerURL);
@@ -556,6 +588,7 @@ namespace Aurora.Addon.Hypergrid
                 }
 
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.ErrorFormat ("[USER AGENT CONNECTOR]: Got exception on GetOnlineFriends response.");
@@ -563,6 +596,60 @@ namespace Aurora.Addon.Hypergrid
             }
 
             return online;
+        }
+
+		public Dictionary<string,object> GetUserInfo (UUID userID)
+        {
+            Hashtable hash = new Hashtable();
+            hash["userID"] = userID.ToString();
+
+            IList paramList = new ArrayList();
+            paramList.Add(hash);
+
+            XmlRpcRequest request = new XmlRpcRequest("get_user_info", paramList);
+
+            Dictionary<string, object> info = new Dictionary<string, object>();
+            XmlRpcResponse response = null;
+            try
+            {
+                response = request.Send(m_ServerURL, 10000);
+            }
+            catch
+            {
+                MainConsole.Instance.DebugFormat("[USER AGENT CONNECTOR]: Unable to contact remote server {0} for GetUserInfo", m_ServerURL);
+                return info;
+            }
+
+            if (response.IsFault)
+            {
+                MainConsole.Instance.ErrorFormat("[USER AGENT CONNECTOR]: remote call to {0} for GetServerURLs returned an error: {1}", m_ServerURL, response.FaultString);
+                return info;
+            }
+
+            hash = (Hashtable)response.Value;
+            try
+            {
+                if (hash == null)
+                {
+                    MainConsole.Instance.ErrorFormat("[USER AGENT CONNECTOR]: GetUserInfo Got null response from {0}! THIS IS BAAAAD", m_ServerURL);
+                    return info;
+                }
+
+                // Here is the actual response
+                foreach (object key in hash.Keys)
+                {
+                    if (hash[key] != null)
+                    {
+                        info.Add(key.ToString(), hash[key]);
+                    }
+                }
+            }
+            catch
+            {
+                MainConsole.Instance.ErrorFormat("[USER AGENT CONNECTOR]: Got exception on GetOnlineFriends response.");
+            }
+
+            return info;
         }
 
         public Dictionary<string, object> GetServerURLs (UUID userID)
@@ -583,6 +670,7 @@ namespace Aurora.Addon.Hypergrid
             {
                 response = request.Send (m_ServerURL, 10000);
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.DebugFormat ("[USER AGENT CONNECTOR]: Unable to contact remote server {0}", m_ServerURL);
@@ -620,6 +708,7 @@ namespace Aurora.Addon.Hypergrid
                 }
 
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.ErrorFormat ("[USER AGENT CONNECTOR]: Got exception on GetOnlineFriends response.");
@@ -647,6 +736,7 @@ namespace Aurora.Addon.Hypergrid
             {
                 response = request.Send (m_ServerURL, 10000);
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.DebugFormat ("[USER AGENT CONNECTOR]: Unable to contact remote server {0}", m_ServerURL);
@@ -678,6 +768,7 @@ namespace Aurora.Addon.Hypergrid
                     url = hash["URL"].ToString ();
 
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.ErrorFormat ("[USER AGENT CONNECTOR]: Got exception on LocateUser response.");
@@ -706,6 +797,7 @@ namespace Aurora.Addon.Hypergrid
             {
                 response = request.Send (m_ServerURL, 10000);
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.DebugFormat ("[USER AGENT CONNECTOR]: Unable to contact remote server {0}", m_ServerURL);
@@ -737,6 +829,7 @@ namespace Aurora.Addon.Hypergrid
                     uui = hash["UUI"].ToString ();
 
             }
+
             catch (Exception e)
             {
                 MainConsole.Instance.ErrorFormat ("[USER AGENT CONNECTOR]: Got exception on LocateUser response.");
@@ -744,6 +837,65 @@ namespace Aurora.Addon.Hypergrid
             }
 
             return uui;
+        }
+
+		public UUID GetUUID(String first, String last)
+        {
+            Hashtable hash = new Hashtable();
+            hash["first"] = first;
+            hash["last"] = last;
+
+            IList paramList = new ArrayList();
+            paramList.Add(hash);
+
+            XmlRpcRequest request = new XmlRpcRequest("get_uuid", paramList);
+            //            string reason = string.Empty;
+
+            // Send and get reply
+            UUID uuid = UUID.Zero;
+            XmlRpcResponse response = null;
+            try
+            {
+                response = request.Send(m_ServerURL, 10000);
+            }
+            catch
+            {
+                MainConsole.Instance.DebugFormat("[USER AGENT CONNECTOR]: Unable to contact remote server {0} for GetUUID", m_ServerURL);
+                //                reason = "Exception: " + e.Message;
+                return uuid;
+            }
+
+            if (response.IsFault)
+            {
+                MainConsole.Instance.ErrorFormat("[USER AGENT CONNECTOR]: remote call to {0} for GetUUID returned an error: {1}", m_ServerURL, response.FaultString);
+                //                reason = "XMLRPC Fault";
+                return uuid;
+            }
+
+            hash = (Hashtable)response.Value;
+            //foreach (Object o in hash)
+            //    m_log.Debug(">> " + ((DictionaryEntry)o).Key + ":" + ((DictionaryEntry)o).Value);
+            try
+            {
+                if (hash == null)
+                {
+                    MainConsole.Instance.ErrorFormat("[USER AGENT CONNECTOR]: GetUUDI Got null response from {0}! THIS IS BAAAAD", m_ServerURL);
+                    //                    reason = "Internal error 1";
+                    return uuid;
+                }
+
+                // Here's the actual response
+                if (hash.ContainsKey("UUID"))
+                    UUID.TryParse(hash["UUID"].ToString(), out uuid);
+
+            }
+            catch
+            {
+                MainConsole.Instance.ErrorFormat("[USER AGENT CONNECTOR]: Got exception on UUID response.");
+                //                reason = "Exception: " + e.Message;
+            }
+
+            return uuid;
         }
 
         private bool GetBoolResponse (XmlRpcRequest request, out string reason)
