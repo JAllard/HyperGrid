@@ -29,21 +29,14 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Linq;
-
 using Aurora.Framework;
-
-
 using Aurora.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
-
 using FriendInfo = OpenSim.Services.Interfaces.FriendInfo;
 using Aurora.Simulation.Base;
-
 using OpenMetaverse;
-
 using Nini.Config;
-
 
 namespace Aurora.Addon.Hypergrid
 {
@@ -55,16 +48,8 @@ namespace Aurora.Addon.Hypergrid
     /// </summary>
     public class UserAgentService : IUserAgentService, IService
     {
-
-
-
-
         // This will need to go into a DB table
         static readonly Dictionary<UUID, TravelingAgentInfo> m_TravelingAgents = new Dictionary<UUID, TravelingAgentInfo>();
-
-
-
-
         protected static IGridService m_GridService;
         protected static IRegistryCore m_registry;
         protected static IAsyncMessagePostService m_asyncPostService;
@@ -82,54 +67,27 @@ namespace Aurora.Addon.Hypergrid
 
         protected static bool m_BypassClientVerification;
 
-
         public void Initialize(IConfigSource config, IRegistryCore registry)
         {
             IConfig hgConfig = config.Configs["HyperGrid"];
             if (hgConfig == null || !hgConfig.GetBoolean("Enabled", false))
                 return;
-
             m_registry = registry;
             registry.RegisterModuleInterface<IUserAgentService>(this);
         }
 
-
         public void Start(IConfigSource config, IRegistryCore registry)
         {
-
-
-
-
-
-
-
-
-
-
-
-
             IConfig hgConfig = config.Configs["HyperGrid"];
             if (hgConfig == null || !hgConfig.GetBoolean("Enabled", false))
                 return;
-
-
-
-
             MainConsole.Instance.DebugFormat("[HOME USERS SECURITY]: Starting...");
-
-
-
-
-
-
 
             IConfig serverConfig = config.Configs["UserAgentService"];
             if (serverConfig == null || !serverConfig.GetBoolean("Enabled", false))
                 return;
 
             m_BypassClientVerification = serverConfig.GetBoolean("BypassClientVerification", false);
-
-
 
             m_GridName = serverConfig.GetString("ExternalName", string.Empty);
             if (m_GridName == string.Empty)
@@ -138,9 +96,6 @@ namespace Aurora.Addon.Hypergrid
                 m_GridName = server.FullHostName + ":" + server.Port + "/";
             }
         }
-
-
-
 
         public void FinishedStartup()
         {
@@ -151,12 +106,9 @@ namespace Aurora.Addon.Hypergrid
             m_GatekeeperConnector = new GatekeeperServiceConnector(m_registry.RequestModuleInterface<IAssetService>());
             m_GatekeeperService = m_registry.RequestModuleInterface<IGatekeeperService>();
             m_FriendsService = m_registry.RequestModuleInterface<IFriendsService>();
-
             m_PresenceService = m_registry.RequestModuleInterface<IAgentInfoService>();
             m_UserAccountService = m_registry.RequestModuleInterface<IUserAccountService>();
         }
-
-
 
         public GridRegion GetHomeRegion(AgentCircuitData circuit, out Vector3 position, out Vector3 lookAt)
         {
@@ -167,15 +119,10 @@ namespace Aurora.Addon.Hypergrid
                 if (region != null)
                 {
 
-
-
-
-
                     Uri uri = null;
                     if (!circuit.ServiceURLs.ContainsKey("HomeURI") ||
                         (circuit.ServiceURLs.ContainsKey("HomeURI") && !Uri.TryCreate(circuit.ServiceURLs["HomeURI"].ToString(), UriKind.Absolute, out uri)))
                         return null;
-
 
                     if (uri != null)
                     {
@@ -213,8 +160,6 @@ namespace Aurora.Addon.Hypergrid
                     != (int)Framework.RegionFlags.Safe))
                 {
 
-
-
                     home = m_GatekeeperService.GetHyperlinkRegion(UUID.Zero);
                     if (home != null)
                     {
@@ -232,13 +177,6 @@ namespace Aurora.Addon.Hypergrid
             MainConsole.Instance.DebugFormat("[USER AGENT SERVICE]: Request to login user {0} (@{1}) to grid {2}",
                 agentCircuit.AgentID, ((clientIP == null) ? "stored IP" : clientIP.Address.ToString()), gatekeeper.ServerURI);
 
-
-
-
-
-
-
-
             // Take the IP address + port of the gatekeeper (reg) plus the info of finalDestination
             GridRegion region = new GridRegion();
             region.FromOSD(gatekeeper.ToOSD());
@@ -253,7 +191,6 @@ namespace Aurora.Addon.Hypergrid
             // Generate a new service session
             agentCircuit.ServiceSessionID = region.ServerURI + ";" + UUID.Random();
             TravelingAgentInfo old = UpdateTravelInfo(agentCircuit, region);
-
 
             bool success = false;
             string myExternalIP = string.Empty;
@@ -356,9 +293,6 @@ namespace Aurora.Addon.Hypergrid
                     m_TravelingAgents.Remove(session);
             }
 
-
-
-
             m_PresenceService.SetLoggedIn(userID.ToString(), false, true, UUID.Zero);
         }
 
@@ -379,7 +313,6 @@ namespace Aurora.Addon.Hypergrid
                 return false;
 
             TravelingAgentInfo travel = m_TravelingAgents[sessionID];
-
 
             string a = travel.GridExternalName, b = thisGridExternalName;
             try
@@ -436,8 +369,6 @@ namespace Aurora.Addon.Hypergrid
 
             return false;
         }
-
-
 
         public bool VerifyAgent(AgentCircuitData circuit)
         {
@@ -508,28 +439,12 @@ namespace Aurora.Addon.Hypergrid
 
             // First, let's send notifications to local users who are online in the home grid
 
-
-
-
-
-
-
-
-
-
-
-
             //Send "" because if we pass the UUID, it will get the locations for all friends, even on the grid they came from
             List<UserInfo> friendSessions = m_PresenceService.GetUserInfos(usersToBeNotified);
             foreach (UserInfo friend in friendSessions)
             {
                 if (friend.IsOnline)
                 {
-
-
-
-
-
 
                     GridRegion ourRegion = m_GridService.GetRegionByUUID(UUID.Zero, friend.CurrentRegionID);
                     if (ourRegion != null)
@@ -557,28 +472,6 @@ namespace Aurora.Addon.Hypergrid
             }
 
             return new List<UUID>();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         }
 
