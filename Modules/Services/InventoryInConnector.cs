@@ -158,8 +158,15 @@ namespace OpenSim.Services
                 request.Remove("METHOD");
                 IGridRegistrationService urlModule =
                     m_registry.RequestModuleInterface<IGridRegistrationService>();
+
                 switch (method)
                 {
+                    case "CREATEUSERINVENTORY":
+                        return HandleCreateUserInventory(request);
+                    case "GETINVENTORYSKELETON":
+                        return HandleGetInventorySkeleton(request);
+                    case "GETUSERINVENTORY":
+                        return HandleGetUserInventory(request);
                     case "GETROOTFOLDER":
                         if (m_SessionID != "" && urlModule != null)
                             if (!urlModule.CheckThreatLevel(m_SessionID, method, ThreatLevel.Medium))
@@ -235,6 +242,10 @@ namespace OpenSim.Services
                             if (!urlModule.CheckThreatLevel(m_SessionID, method, ThreatLevel.Medium))
                                 return FailureResult();
                         return HandleGetFolder(request);
+                    case "GETACTIVEGESTURES":
+                        return HandleGetActiveGestures(request);
+                    case "GETASSETPERMISSIONS":
+                        return HandleGetAssetPermissions(request);
                 }
                 MainConsole.Instance.DebugFormat("[XINVENTORY HANDLER]: unknown method request: {0}", method);
             }
@@ -262,12 +273,10 @@ namespace OpenSim.Services
 
             XmlNode xmlnode = doc.CreateNode(XmlNodeType.XmlDeclaration,
                                              "", "");
-
             doc.AppendChild(xmlnode);
 
             XmlElement rootElement = doc.CreateElement("", "ServerResponse",
                                                        "");
-
             doc.AppendChild(rootElement);
 
             XmlElement result = doc.CreateElement("", "RESULT", "");
@@ -282,10 +291,96 @@ namespace OpenSim.Services
         {
             MemoryStream ms = new MemoryStream();
             XmlTextWriter xw = new XmlTextWriter(ms, null) { Formatting = Formatting.Indented };
+
             doc.WriteTo(xw);
             xw.Flush();
 
             return ms.ToArray();
+        }
+
+        byte[] HandleCreateUserInventory(Dictionary<string, object> request)
+        {
+            Dictionary<string, object> result = new Dictionary<string, object>();
+
+            if (!request.ContainsKey("PRINCIPAL"))
+                return FailureResult();
+
+            if (m_InventoryService.CreateUserInventory(new UUID(request["PRINCIPAL"].ToString()),true))
+                result["RESULT"] = "True";
+            else
+                result["RESULT"] = "False";
+
+            string xmlString = WebUtils.BuildXmlResponse(result);
+            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
+            UTF8Encoding encoding = new UTF8Encoding();
+            return encoding.GetBytes(xmlString);
+        }
+
+        byte[] HandleGetInventorySkeleton(Dictionary<string, object> request)
+        {
+            Dictionary<string, object> result = new Dictionary<string, object>();
+
+            if (!request.ContainsKey("PRINCIPAL"))
+                return FailureResult();
+
+
+            List<InventoryFolderBase> folders = m_InventoryService.GetInventorySkeleton(new UUID(request["PRINCIPAL"].ToString()));
+
+            Dictionary<string, object> sfolders = new Dictionary<string, object>();
+            if (folders != null)
+            {
+                int i = 0;
+                foreach (InventoryFolderBase f in folders)
+                {
+                    sfolders["folder_" + i.ToString()] = EncodeFolder(f);
+                    i++;
+                }
+            }
+            result["FOLDERS"] = sfolders;
+
+            string xmlString = WebUtils.BuildXmlResponse(result);
+            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
+            UTF8Encoding encoding = new UTF8Encoding();
+            return encoding.GetBytes(xmlString);
+        }
+
+        byte[] HandleGetUserInventory(Dictionary<string, object> request)
+        {
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            UUID principal = UUID.Zero;
+            UUID.TryParse(request["PRINCIPAL"].ToString(), out principal);
+
+            InventoryCollection icoll = m_InventoryService.GetUserInventory(principal);
+            if (icoll != null)
+            {
+                Dictionary<string, object> folders = new Dictionary<string, object>();
+                int i = 0;
+                if (icoll.Folders != null)
+                {
+                    foreach (InventoryFolderBase f in icoll.Folders)
+                    {
+                        folders["folder_" + i.ToString()] = EncodeFolder(f);
+                        i++;
+                    }
+                    result["FOLDERS"] = folders;
+                }
+                if (icoll.Items != null)
+                {
+                    i = 0;
+                    Dictionary<string, object> items = new Dictionary<string, object>();
+                    foreach (InventoryItemBase it in icoll.Items)
+                    {
+                        items["item_" + i.ToString()] = EncodeItem(it);
+                        i++;
+                    }
+                    result["ITEMS"] = items;
+                }
+            }
+
+            string xmlString = WebUtils.BuildXmlResponse(result);
+            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
+            UTF8Encoding encoding = new UTF8Encoding();
+            return encoding.GetBytes(xmlString);
         }
 
         private byte[] HandleGetRootFolder(Dictionary<string, object> request)
@@ -340,8 +435,10 @@ namespace OpenSim.Services
                 int i = 0;
                 foreach (InventoryFolderBase f in icoll.Folders)
                 {
+
                     folders["folder_" + i.ToString()] = EncodeFolder(f);
                     i++;
+
                 }
                 result["FOLDERS"] = folders;
 
@@ -349,6 +446,7 @@ namespace OpenSim.Services
                 Dictionary<string, object> items = new Dictionary<string, object>();
                 foreach (InventoryItemBase it in icoll.Items)
                 {
+
                     items["item_" + i.ToString()] = EncodeItem(it);
                     i++;
                 }
@@ -383,6 +481,7 @@ namespace OpenSim.Services
             }
             result["ITEMS"] = sitems;
 
+
             string xmlString = WebUtils.BuildXmlResponse(result);
             //MainConsole.Instance.DebugFormat("[XXX]: resp string: {0}", xmlString);
             UTF8Encoding encoding = new UTF8Encoding();
@@ -395,6 +494,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.AddFolder(folder))
                 return SuccessResult();
+
             return FailureResult();
         }
 
@@ -404,6 +504,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.UpdateFolder(folder))
                 return SuccessResult();
+
             return FailureResult();
         }
 
@@ -419,7 +520,9 @@ namespace OpenSim.Services
             InventoryFolderBase folder = new InventoryFolderBase(folderID, "", principal, parentID);
             if (m_InventoryService.MoveFolder(folder))
                 return SuccessResult();
+
             return FailureResult();
+
         }
 
         byte[] HandleDeleteFolders(Dictionary<string, object> request)
@@ -436,6 +539,7 @@ namespace OpenSim.Services
             }
 
             return m_InventoryService.DeleteFolders(principal, uuids) ? SuccessResult() : FailureResult();
+
         }
 
         private byte[] HandlePurgeFolder(Dictionary<string, object> request)
@@ -446,6 +550,7 @@ namespace OpenSim.Services
             InventoryFolderBase folder = new InventoryFolderBase(folderID);
             if (m_InventoryService.PurgeFolder(folder))
                 return SuccessResult();
+
             return FailureResult();
         }
 
@@ -455,6 +560,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.AddItem(item))
                 return SuccessResult();
+
             return FailureResult();
         }
 
@@ -464,6 +570,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.UpdateItem(item))
                 return SuccessResult();
+
             return FailureResult();
         }
 
@@ -487,6 +594,7 @@ namespace OpenSim.Services
                         if (UUID.TryParse(destlist[n++], out fid))
                         {
                             InventoryItemBase item = new InventoryItemBase(u, principal) { Folder = fid };
+
                             items.Add(item);
                         }
                     }
@@ -500,6 +608,7 @@ namespace OpenSim.Services
 
             if (m_InventoryService.MoveItems(principal, items))
                 return SuccessResult();
+
             return FailureResult();
         }
 
@@ -520,6 +629,7 @@ namespace OpenSim.Services
             if (m_InventoryService.DeleteItems(principal, uuids))
                 return SuccessResult();
             return
+
                 FailureResult();
         }
 
@@ -557,6 +667,49 @@ namespace OpenSim.Services
             return encoding.GetBytes(xmlString);
         }
 
+        byte[] HandleGetActiveGestures(Dictionary<string, object> request)
+        {
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            UUID principal = UUID.Zero;
+            UUID.TryParse(request["PRINCIPAL"].ToString(), out principal);
+
+            List<InventoryItemBase> gestures = m_InventoryService.GetActiveGestures(principal);
+            Dictionary<string, object> items = new Dictionary<string, object>();
+            if (gestures != null)
+            {
+                int i = 0;
+                foreach (InventoryItemBase item in gestures)
+                {
+                    items["item_" + i.ToString()] = EncodeItem(item);
+                    i++;
+                }
+            }
+            result["ITEMS"] = items;
+
+            string xmlString = WebUtils.BuildXmlResponse(result);
+            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
+            UTF8Encoding encoding = new UTF8Encoding();
+            return encoding.GetBytes(xmlString);
+        }
+
+        byte[] HandleGetAssetPermissions(Dictionary<string, object> request)
+        {
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            UUID principal = UUID.Zero;
+            UUID.TryParse(request["PRINCIPAL"].ToString(), out principal);
+            UUID assetID = UUID.Zero;
+            UUID.TryParse(request["ASSET"].ToString(), out assetID);
+
+            int perms = m_InventoryService.GetAssetPermissions(principal, assetID);
+
+            result["RESULT"] = perms.ToString();
+            string xmlString = WebUtils.BuildXmlResponse(result);
+            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
+            UTF8Encoding encoding = new UTF8Encoding();
+            return encoding.GetBytes(xmlString);
+        }
+
+
         private Dictionary<string, object> EncodeFolder(InventoryFolderBase f)
         {
             Dictionary<string, object> ret = new Dictionary<string, object>();
@@ -589,7 +742,7 @@ namespace OpenSim.Services
                 ret["CreatorData"] = String.Empty;
             ret["CreatorData"] = item.CreatorData;
             ret["CurrentPermissions"] = item.CurrentPermissions.ToString();
-            ret["Description"] = item.Description;
+            ret["Description"] = item.Description.ToString();
             ret["EveryOnePermissions"] = item.EveryOnePermissions.ToString();
             ret["Flags"] = item.Flags.ToString();
             ret["Folder"] = item.Folder.ToString();
@@ -598,7 +751,7 @@ namespace OpenSim.Services
             ret["GroupPermissions"] = item.GroupPermissions.ToString();
             ret["ID"] = item.ID.ToString();
             ret["InvType"] = item.InvType.ToString();
-            ret["Name"] = item.Name;
+            ret["Name"] = item.Name.ToString();
             ret["NextPermissions"] = item.NextPermissions.ToString();
             ret["Owner"] = item.Owner.ToString();
             ret["SalePrice"] = item.SalePrice.ToString();
@@ -618,7 +771,6 @@ namespace OpenSim.Services
                 Owner = new UUID(data["Owner"].ToString()),
                 ID = new UUID(data["ID"].ToString())
             };
-
 
             return folder;
         }
@@ -650,8 +802,8 @@ namespace OpenSim.Services
                 CreationDate = int.Parse(data["CreationDate"].ToString())
             };
 
-
             return item;
         }
+
     }
 }
