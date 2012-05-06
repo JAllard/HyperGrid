@@ -68,7 +68,8 @@ namespace Aurora.Addon.Hypergrid
         bool IsAgentComingHome(UUID sessionID, string thisGridExternalName);
         bool VerifyAgent(UUID sessionID, string token);
         bool VerifyClient(UUID sessionID, string reportedIP);
-      }
+	    GridRegion GetHomeRegion(AgentCircuitData userID, out Vector3 position, out Vector3 lookAt);
+    }
     public interface IInstantMessage
     {
         bool IncomingInstantMessage (GridInstantMessage im);
