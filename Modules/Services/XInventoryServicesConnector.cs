@@ -25,23 +25,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Aurora.DataManager;
 using Aurora.Simulation.Base;
+
 using Nini.Config;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
+
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
+
+
 
 namespace OpenSim.Services.Connectors
 {
     public class XInventoryServicesConnector : IInventoryService, IService
     {
         private IRegistryCore m_registry;
+
+
+
 
         public virtual string Name
         {
@@ -50,9 +58,85 @@ namespace OpenSim.Services.Connectors
 
         #region IInventoryService Members
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         public virtual bool CreateUserInventory(UUID principalID, bool createDefaultItems)
         {
-            return false;
+            Dictionary<string, object> ret = MakeRequest("CREATEUSERINVENTORY",
+                    new Dictionary<string, object> {
+                        { "PRINCIPAL", principalID.ToString() }
+                    });
+
+            if (ret == null)
+                return false;
+            if (ret.Count == 0)
+                return false;
+
+            return bool.Parse(ret["RESULT"].ToString());
         }
 
         public virtual bool CreateUserRootFolder(UUID principalID)
@@ -62,7 +146,31 @@ namespace OpenSim.Services.Connectors
 
         public virtual List<InventoryFolderBase> GetInventorySkeleton(UUID principalID)
         {
-            return null;
+            Dictionary<string, object> ret = MakeRequest("GETINVENTORYSKELETON",
+                    new Dictionary<string, object> {
+                        { "PRINCIPAL", principalID.ToString() }
+                    });
+
+            if (ret == null)
+                return null;
+            if (ret.Count == 0)
+                return null;
+
+            Dictionary<string, object> folders = (Dictionary<string, object>)ret["FOLDERS"];
+
+            List<InventoryFolderBase> fldrs = new List<InventoryFolderBase>();
+
+            try
+            {
+                foreach (Object o in folders.Values)
+                    fldrs.Add(BuildFolder((Dictionary<string, object>)o));
+            }
+            catch (Exception e)
+            {
+                MainConsole.Instance.DebugFormat("[XINVENTORY CONNECTOR STUB]: Exception unwrapping folder list: {0}", e.Message);
+            }
+
+            return fldrs;
         }
 
         public InventoryFolderBase GetFolderByOwnerAndName(UUID userID, string FolderName)
@@ -83,6 +191,9 @@ namespace OpenSim.Services.Connectors
                                                                  {"PRINCIPAL", principalID.ToString()}
                                                              });
 
+
+
+
             if (ret == null)
                 return null;
             if (ret.Count == 0)
@@ -101,6 +212,10 @@ namespace OpenSim.Services.Connectors
                                                                  {"INVTYPE", ((int) invType).ToString()}
                                                              });
 
+
+
+
+
             if (ret == null)
                 return null;
             if (ret.Count == 0)
@@ -112,6 +227,9 @@ namespace OpenSim.Services.Connectors
         public virtual InventoryCollection GetFolderContent(UUID principalID, UUID folderID)
         {
             InventoryCollection inventory = new InventoryCollection();
+            inventory.Folders = new List<InventoryFolderBase>();
+            inventory.Items = new List<InventoryItemBase>();
+            inventory.UserID = principalID;
 
             try
             {
@@ -121,6 +239,10 @@ namespace OpenSim.Services.Connectors
                                                                      {"PRINCIPAL", principalID.ToString()},
                                                                      {"FOLDER", folderID.ToString()}
                                                                  });
+
+
+
+
 
                 if (ret == null)
                     return null;
@@ -133,8 +255,10 @@ namespace OpenSim.Services.Connectors
                 inventory.UserID = principalID;
 
                 Dictionary<string, object> folders =
+
                     (Dictionary<string, object>)ret["FOLDERS"];
                 Dictionary<string, object> items =
+
                     (Dictionary<string, object>)ret["ITEMS"];
 
                 foreach (Object o in folders.Values)
@@ -165,12 +289,19 @@ namespace OpenSim.Services.Connectors
                                                                  {"FOLDER", folderID.ToString()}
                                                              });
 
+
+
+
+
             if (ret == null)
                 return null;
             if (ret.Count == 0)
                 return null;
 
             Dictionary<string, object> items = (Dictionary<string, object>)ret["ITEMS"];
+
+
+
 
 #if (!ISWIN)
             List<InventoryItemBase> list = new List<InventoryItemBase>();
@@ -180,6 +311,7 @@ namespace OpenSim.Services.Connectors
 #else
             return items.Values.Select(o => BuildItem((Dictionary<string, object>) o)).ToList();
 #endif
+
         }
 
         public virtual bool AddFolder(InventoryFolderBase folder)
@@ -197,6 +329,14 @@ namespace OpenSim.Services.Connectors
                                                                  {"Owner", folder.Owner.ToString()},
                                                                  {"ID", folder.ID.ToString()}
                                                              });
+
+
+
+
+
+
+
+
 
             if (ret == null)
                 return false;
@@ -220,6 +360,14 @@ namespace OpenSim.Services.Connectors
                                                                  {"ID", folder.ID.ToString()}
                                                              });
 
+
+
+
+
+
+
+
+
             if (ret == null)
                 return false;
 
@@ -239,6 +387,11 @@ namespace OpenSim.Services.Connectors
                                                                  {"PRINCIPAL", folder.Owner.ToString()}
                                                              });
 
+
+
+
+
+
             if (ret == null)
                 return false;
 
@@ -254,6 +407,7 @@ namespace OpenSim.Services.Connectors
 
 #if (!ISWIN)
             List<string> slist = new List<string>();
+
             foreach (UUID f in folderIDs)
                 slist.Add(f.ToString());
 #else
@@ -266,6 +420,10 @@ namespace OpenSim.Services.Connectors
                                                                  {"PRINCIPAL", principalID.ToString()},
                                                                  {"FOLDERS", slist}
                                                              });
+
+
+
+
 
             if (ret == null)
                 return false;
@@ -288,6 +446,9 @@ namespace OpenSim.Services.Connectors
                                                              {
                                                                  {"ID", folder.ID.ToString()}
                                                              });
+
+
+
 
             if (ret == null)
                 return false;
@@ -316,11 +477,23 @@ namespace OpenSim.Services.Connectors
                                                                  {"CreatorId", item.CreatorId},
                                                                  {"CreatorData", item.CreatorData},
                                                                  {"Description", item.Description},
+
+
+
+
+
+
+
+
+
+
+
                                                                  {"NextPermissions", item.NextPermissions.ToString()},
                                                                  {
                                                                      "CurrentPermissions",
                                                                      item.CurrentPermissions.ToString()
                                                                      },
+
                                                                  {"BasePermissions", item.BasePermissions.ToString()},
                                                                  {
                                                                      "EveryOnePermissions",
@@ -332,8 +505,14 @@ namespace OpenSim.Services.Connectors
                                                                  {"SalePrice", item.SalePrice.ToString()},
                                                                  {"SaleType", item.SaleType.ToString()},
                                                                  {"Flags", item.Flags.ToString()},
+
+
+
+
+
                                                                  {"CreationDate", item.CreationDate.ToString()}
                                                              });
+
 
             if (ret == null)
                 return false;
@@ -362,11 +541,23 @@ namespace OpenSim.Services.Connectors
                                                                  {"CreatorId", item.CreatorId},
                                                                  {"CreatorData", item.CreatorData},
                                                                  {"Description", item.Description},
+
+
+
+
+
+
+
+
+
+
+
                                                                  {"NextPermissions", item.NextPermissions.ToString()},
                                                                  {
                                                                      "CurrentPermissions",
                                                                      item.CurrentPermissions.ToString()
                                                                      },
+
                                                                  {"BasePermissions", item.BasePermissions.ToString()},
                                                                  {
                                                                      "EveryOnePermissions",
@@ -378,8 +569,14 @@ namespace OpenSim.Services.Connectors
                                                                  {"SalePrice", item.SalePrice.ToString()},
                                                                  {"SaleType", item.SaleType.ToString()},
                                                                  {"Flags", item.Flags.ToString()},
+
+
+
+
+
                                                                  {"CreationDate", item.CreationDate.ToString()}
                                                              });
+
 
             if (ret == null)
                 return false;
@@ -409,6 +606,11 @@ namespace OpenSim.Services.Connectors
                                                                  {"DESTLIST", destlist}
                                                              });
 
+
+
+
+
+
             if (ret == null)
                 return false;
 
@@ -424,6 +626,7 @@ namespace OpenSim.Services.Connectors
 
 #if (!ISWIN)
             List<string> slist = new List<string>();
+
             foreach (UUID f in itemIDs)
                 slist.Add(f.ToString());
 #else
@@ -436,6 +639,10 @@ namespace OpenSim.Services.Connectors
                                                                  {"PRINCIPAL", principalID.ToString()},
                                                                  {"ITEMS", slist}
                                                              });
+
+
+
+
 
             if (ret == null)
                 return false;
@@ -455,6 +662,9 @@ namespace OpenSim.Services.Connectors
                                                                  {
                                                                      {"ID", item.ID.ToString()}
                                                                  });
+
+
+
 
                 if (ret == null)
                     return null;
@@ -484,6 +694,9 @@ namespace OpenSim.Services.Connectors
                                                                      {"ID", folder.ID.ToString()}
                                                                  });
 
+
+
+
                 if (ret == null)
                     return null;
                 if (ret.Count == 0)
@@ -504,30 +717,131 @@ namespace OpenSim.Services.Connectors
             return new List<InventoryItemBase>();
         }
 
+
+
+
+
         public OSDArray GetItem(UUID ItemID)
         {
             IInventoryData database = DataManager.RequestPlugin<IInventoryData>();
             return database.GetLLSDItems(
                 new[] { "inventoryID" },
                 new[] { ItemID.ToString() });
+
+
+
+
+
+
+
+
+
         }
 
         public OSDArray GetLLSDFolderItems(UUID folderID, UUID parentID)
         {
             return null;
+
+
+
+
+
+
+
+
+
+
         }
 
         public bool UpdateAssetIDForItem(UUID itemID, UUID assetID)
         {
             return false;
         }
+        
+        public InventoryCollection GetUserInventory(UUID principalID)
+        {
+
+
+            InventoryCollection inventory = new InventoryCollection();
+            inventory.Folders = new List<InventoryFolderBase>();
+            inventory.Items = new List<InventoryItemBase>();
+            inventory.UserID = principalID;
+
+
+            try
+            {
+                Dictionary<string, object> ret = MakeRequest("GETUSERINVENTORY",
+                        new Dictionary<string, object> {
+                            { "PRINCIPAL", principalID.ToString() }
+                        });
+
+
+
+                if (ret == null)
+                    return null;
+                if (ret.Count == 0)
+                    return null;
+
+
+                Dictionary<string, object> folders =
+                        (Dictionary<string, object>)ret["FOLDERS"];
+                Dictionary<string, object> items =
+                        (Dictionary<string, object>)ret["ITEMS"];
+
+
+
+
+
+
+                foreach (Object o in folders.Values) // getting the values directly, we don't care about the keys folder_i
+                    inventory.Folders.Add(BuildFolder((Dictionary<string, object>)o));
+                foreach (Object o in items.Values) // getting the values directly, we don't care about the keys item_i
+                    inventory.Items.Add(BuildItem((Dictionary<string, object>)o));
+            }
+            catch (Exception e)
+            {
+                MainConsole.Instance.DebugFormat("[XINVENTORY CONNECTOR STUB]: Exception in GetUserInventory: {0}", e.Message);
+            }
+
+
+
+            return inventory;
+        }
+
+
+        public void GetUserInventory(UUID principalID, InventoryReceiptCallback callback)
+        {
+        }
+
+
+        public bool HasInventoryForUser(UUID principalID)
+        {
+            return false;
+        }
+
+
+
 
         #endregion
+
+
+
+
+
+
 
         // Helpers
         //
 
+
+
+
+
         #region IService Members
+
+
+
+
 
         public virtual void Initialize(IConfigSource config, IRegistryCore registry)
         {
@@ -535,8 +849,18 @@ namespace OpenSim.Services.Connectors
             if (handlerConfig.GetString("InventoryHandler", "") != Name)
                 return;
 
+
+
+
+
+
+
+
+
+
             registry.RegisterModuleInterface<IInventoryService>(this);
             m_registry = registry;
+
         }
 
         public virtual void Start(IConfigSource config, IRegistryCore registry)
@@ -545,6 +869,7 @@ namespace OpenSim.Services.Connectors
 
         public void FinishedStartup()
         {
+
         }
 
         #endregion
@@ -561,13 +886,21 @@ namespace OpenSim.Services.Connectors
             if (ret == null)
                 return 0;
 
+
             return int.Parse(ret["RESULT"].ToString());
         }
+
+
+
+
+
 
         private Dictionary<string, object> MakeRequest(string method,
                                                        Dictionary<string, object> sendData)
         {
             sendData["METHOD"] = method;
+
+
 
             List<string> serverURIs = m_registry == null
                                           ? null
@@ -582,6 +915,7 @@ namespace OpenSim.Services.Connectors
                         into reply
                         where reply != ""
                         select WebUtils.ParseXmlResponse(reply)).FirstOrDefault();
+
         }
 
         private InventoryFolderBase BuildFolder(Dictionary<string, object> data)
@@ -620,6 +954,10 @@ namespace OpenSim.Services.Connectors
                 item.Folder = new UUID(data["Folder"].ToString());
                 item.CreatorId = data["CreatorId"].ToString();
                 item.CreatorData = data.ContainsKey("CreatorData") ? data["CreatorData"].ToString() : String.Empty;
+
+
+
+
                 item.Description = data["Description"].ToString();
                 item.NextPermissions = uint.Parse(data["NextPermissions"].ToString());
                 item.CurrentPermissions = uint.Parse(data["CurrentPermissions"].ToString());
