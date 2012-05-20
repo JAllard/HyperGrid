@@ -30,36 +30,36 @@ using System;
 using System.IO;
 using System.Xml;
 using System.Collections.Generic;
-using System.Linq;
 using OpenSim.Services.Interfaces;
 using FriendInfo = OpenSim.Services.Interfaces.FriendInfo;
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
 using Aurora.Simulation.Base;
 using OpenMetaverse;
-
+using System.Linq;
 namespace Aurora.Addon.Hypergrid
 {
     public class HGFriendsServerConnector : IService
     {
-        public void Initialize(IConfigSource config, IRegistryCore registry)
+        public void Initialize (IConfigSource config, IRegistryCore registry)
         {
         }
 
-        public void Start(IConfigSource config, IRegistryCore registry)
+        public void Start (IConfigSource config, IRegistryCore registry)
         {
             IConfig hgConfig = config.Configs["HyperGrid"];
-            if (hgConfig == null || !hgConfig.GetBoolean("Enabled", false))
+            if (hgConfig == null || !hgConfig.GetBoolean ("Enabled", false))
                 return;
 
             IConfig friendConfig = config.Configs["HGFriends"];
-            if (friendConfig == null || !friendConfig.GetBoolean("Enabled", false))
+            if (friendConfig == null || !friendConfig.GetBoolean ("Enabled", false))
                 return;
-            MainServer.Instance.AddStreamHandler(new HGFriendsServerPostHandler(registry.RequestModuleInterface<IFriendsService>(),
+
+            MainServer.Instance.AddStreamHandler (new HGFriendsServerPostHandler (registry.RequestModuleInterface<IFriendsService>(),
                 registry.RequestModuleInterface<IUserAgentService>()));
         }
 
-        public void FinishedStartup()
+        public void FinishedStartup ()
         {
         }
     }
@@ -69,133 +69,108 @@ namespace Aurora.Addon.Hypergrid
         private readonly IFriendsService m_FriendsService;
         private readonly IUserAgentService m_UserAgentService;
 
-        public HGFriendsServerPostHandler(IFriendsService service, IUserAgentService uservice) :
-            base("POST", "/hgfriends")
+        public HGFriendsServerPostHandler (IFriendsService service, IUserAgentService uservice) :
+            base ("POST", "/hgfriends")
         {
             m_FriendsService = service;
             m_UserAgentService = uservice;
-            MainConsole.Instance.DebugFormat("[HGFRIENDS HANDLER]: HGFriendsServerPostHandler is On");
+            MainConsole.Instance.DebugFormat ("[HGFRIENDS HANDLER]: HGFriendsServerPostHandler is On");
         }
 
-        public override byte[] Handle(string path, Stream requestData,
+        public override byte[] Handle (string path, Stream requestData,
                 OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
-            StreamReader sr = new StreamReader(requestData);
-            string body = sr.ReadToEnd();
-            sr.Close();
-            body = body.Trim();
+            StreamReader sr = new StreamReader (requestData);
+            string body = sr.ReadToEnd ();
+            sr.Close ();
+            body = body.Trim ();
 
             //MainConsole.Instance.DebugFormat("[XXX]: query String: {0}", body);
 
             try
             {
                 Dictionary<string, object> request =
-                        WebUtils.ParseQueryString(body);
+                        WebUtils.ParseQueryString (body);
 
-                if (!request.ContainsKey("METHOD"))
-                    return FailureResult();
+                if (!request.ContainsKey ("METHOD"))
+                    return FailureResult ();
 
-
-                string method = request["METHOD"].ToString();
+                string method = request["METHOD"].ToString ();
 
                 switch (method)
                 {
                     case "getfriendperms":
-                        return GetFriendPerms(request);
+                        return GetFriendPerms (request);
 
                     case "newfriendship":
-                        return NewFriendship(request);
+                        return NewFriendship (request);
 
                     case "deletefriendship":
-                        return DeleteFriendship(request);
-
-                    /* Same as inter-sim */
-                    /*case "friendship_offered":
-                        return FriendshipOffered(request);
-
-                    case "validate_friendship_offered":
-                        return ValidateFriendshipOffered(request);
-
-                    case "statusnotification":
-                        return StatusNotification(request);
-                    
-                    case "friendship_approved":
-                        return FriendshipApproved(request);
-                    
-                    case "friendship_denied":
-                        return FriendshipDenied(request);
-                    
-                    case "friendship_terminated":
-                        return FriendshipTerminated(request);
-                    
-                    case "grant_rights":
-                        return GrantRights(request);
-                        */
+                        return DeleteFriendship (request);
                 }
-                MainConsole.Instance.DebugFormat("[HGFRIENDS HANDLER]: unknown method {0} request {1}", method.Length, method);
+                MainConsole.Instance.DebugFormat ("[HGFRIENDS HANDLER]: unknown method {0} request {1}", method.Length, method);
             }
             catch (Exception e)
             {
-                MainConsole.Instance.DebugFormat("[HGFRIENDS HANDLER]: Exception {0}", e);
+                MainConsole.Instance.DebugFormat ("[HGFRIENDS HANDLER]: Exception {0}", e);
             }
 
-            return FailureResult();
+            return FailureResult ();
+
         }
 
         #region Method-specific handlers
 
-
-        byte[] GetFriendPerms(Dictionary<string, object> request)
+        byte[] GetFriendPerms (Dictionary<string, object> request)
         {
-            if (!VerifyServiceKey(request))
-                return FailureResult();
+            if (!VerifyServiceKey (request))
+                return FailureResult ();
 
             UUID principalID = UUID.Zero;
-            if (request.ContainsKey("PRINCIPALID"))
-                UUID.TryParse(request["PRINCIPALID"].ToString(), out principalID);
+            if (request.ContainsKey ("PRINCIPALID"))
+                UUID.TryParse (request["PRINCIPALID"].ToString (), out principalID);
             else
             {
-                MainConsole.Instance.WarnFormat("[HGFRIENDS HANDLER]: no principalID in request to get friend perms");
-                return FailureResult();
+                MainConsole.Instance.WarnFormat ("[HGFRIENDS HANDLER]: no principalID in request to get friend perms");
+                return FailureResult ();
             }
 
             UUID friendID = UUID.Zero;
-            if (request.ContainsKey("FRIENDID"))
-                UUID.TryParse(request["FRIENDID"].ToString(), out friendID);
+            if (request.ContainsKey ("FRIENDID"))
+                UUID.TryParse (request["FRIENDID"].ToString (), out friendID);
             else
             {
-                MainConsole.Instance.WarnFormat("[HGFRIENDS HANDLER]: no friendID in request to get friend perms");
-                return FailureResult();
+                MainConsole.Instance.WarnFormat ("[HGFRIENDS HANDLER]: no friendID in request to get friend perms");
+                return FailureResult ();
             }
 
-            List<FriendInfo> friendsInfo = m_FriendsService.GetFriends(principalID);
+            List<FriendInfo> friendsInfo = m_FriendsService.GetFriends (principalID);
             foreach (FriendInfo finfo in friendsInfo)
             {
-                if (finfo.Friend.StartsWith(friendID.ToString()))
-                    return SuccessResult(finfo.TheirFlags.ToString());
+                if (finfo.Friend.StartsWith (friendID.ToString ()))
+                    return SuccessResult (finfo.TheirFlags.ToString ());
             }
 
-            return FailureResult("Friend not found");
-
+            return FailureResult ("Friend not found");
         }
 
-        byte[] NewFriendship(Dictionary<string, object> request)
+        byte[] NewFriendship (Dictionary<string, object> request)
         {
-            if (!VerifyServiceKey(request))
-                return FailureResult();
+            if (!VerifyServiceKey (request))
+                return FailureResult ();
 
             // OK, can proceed
-            FriendInfo friend = new FriendInfo(request);
+            FriendInfo friend = new FriendInfo (request);
             UUID friendID;
             string tmp = string.Empty;
-            if (!HGUtil.ParseUniversalUserIdentifier(friend.Friend, out friendID, out tmp, out tmp, out tmp, out tmp))
-                return FailureResult();
+            if (!HGUtil.ParseUniversalUserIdentifier (friend.Friend, out friendID, out tmp, out tmp, out tmp, out tmp))
+                return FailureResult ();
 
-            MainConsole.Instance.DebugFormat("[HGFRIENDS HANDLER]: New friendship {0} {1}", friend.PrincipalID, friend.Friend);
 
+            MainConsole.Instance.DebugFormat ("[HGFRIENDS HANDLER]: New friendship {0} {1}", friend.PrincipalID, friend.Friend);
 
             // If the friendship already exists, return fail
-            List<FriendInfo> finfos = m_FriendsService.GetFriends(friend.PrincipalID);
+            List<FriendInfo> finfos = m_FriendsService.GetFriends (friend.PrincipalID);
 #if (!ISWIN)
             foreach (FriendInfo finfo in finfos)
                 if (finfo.Friend.StartsWith(friendID.ToString()))
@@ -205,168 +180,157 @@ namespace Aurora.Addon.Hypergrid
                 return FailureResult();
 #endif
             // the user needs to confirm when he gets home
-            bool success = m_FriendsService.StoreFriend(friend.PrincipalID, friend.Friend, 0);
-
+            bool success = m_FriendsService.StoreFriend (friend.PrincipalID, friend.Friend, 0);
 
             if (success)
-                return SuccessResult();
-
-            return FailureResult();
+                return SuccessResult ();
+            return FailureResult ();
         }
 
-        byte[] DeleteFriendship(Dictionary<string, object> request)
+        byte[] DeleteFriendship (Dictionary<string, object> request)
         {
-            FriendInfo friend = new FriendInfo(request);
+            FriendInfo friend = new FriendInfo (request);
             string secret = string.Empty;
-            if (request.ContainsKey("SECRET"))
-                secret = request["SECRET"].ToString();
+            if (request.ContainsKey ("SECRET"))
+                secret = request["SECRET"].ToString ();
 
             if (secret == string.Empty)
-                return FailureResult();
-
+                return FailureResult ();
 
             List<FriendInfo> finfos = m_FriendsService.GetFriends(friend.PrincipalID);
             foreach (FriendInfo finfo in finfos)
             {
                 // We check the secret here
-                if (finfo.Friend.StartsWith(friend.Friend) && finfo.Friend.EndsWith(secret))
+                if (finfo.Friend.StartsWith (friend.Friend) && finfo.Friend.EndsWith (secret))
                 {
-                    MainConsole.Instance.DebugFormat("[HGFRIENDS HANDLER]: Delete friendship {0} {1}", friend.PrincipalID, friend.Friend);
-                    m_FriendsService.Delete(friend.PrincipalID, finfo.Friend);
-                    m_FriendsService.Delete(UUID.Parse(finfo.Friend), friend.PrincipalID.ToString());
+                    MainConsole.Instance.DebugFormat ("[HGFRIENDS HANDLER]: Delete friendship {0} {1}", friend.PrincipalID, friend.Friend);
+                    m_FriendsService.Delete (friend.PrincipalID, finfo.Friend);
+                    m_FriendsService.Delete (UUID.Parse(finfo.Friend), friend.PrincipalID.ToString());
 
-
-                    return SuccessResult();
-
+                    return SuccessResult ();
                 }
             }
 
-            return FailureResult();
-
-
+            return FailureResult ();
         }
-
 
         #endregion
 
         #region Misc
 
-        private bool VerifyServiceKey(Dictionary<string, object> request)
+        private bool VerifyServiceKey (Dictionary<string, object> request)
         {
-            if (!request.ContainsKey("KEY") || !request.ContainsKey("SESSIONID"))
+            if (!request.ContainsKey ("KEY") || !request.ContainsKey ("SESSIONID"))
             {
-                MainConsole.Instance.WarnFormat("[HGFRIENDS HANDLER]: ignoring request without Key or SessionID");
+                MainConsole.Instance.WarnFormat ("[HGFRIENDS HANDLER]: ignoring request without Key or SessionID");
                 return false;
             }
 
-            string serviceKey = request["KEY"].ToString();
-            string sessionStr = request["SESSIONID"].ToString();
-
+            string serviceKey = request["KEY"].ToString ();
+            string sessionStr = request["SESSIONID"].ToString ();
             UUID sessionID;
-            UUID.TryParse(sessionStr, out sessionID);
+            UUID.TryParse (sessionStr, out sessionID);
 
-
-            if (!m_UserAgentService.VerifyAgent(sessionID, serviceKey))
+            if (!m_UserAgentService.VerifyAgent (sessionID, serviceKey))
             {
-                MainConsole.Instance.WarnFormat("[HGFRIENDS HANDLER]: Key {0} for session {1} did not match existing key. Ignoring request", serviceKey, sessionID);
+                MainConsole.Instance.WarnFormat ("[HGFRIENDS HANDLER]: Key {0} for session {1} did not match existing key. Ignoring request", serviceKey, sessionID);
                 return false;
             }
 
-            MainConsole.Instance.DebugFormat("[HGFRIENDS HANDLER]: Verification ok");
+            MainConsole.Instance.DebugFormat ("[HGFRIENDS HANDLER]: Verification ok");
             return true;
         }
 
-        private byte[] SuccessResult()
+        private byte[] SuccessResult ()
         {
-            XmlDocument doc = new XmlDocument();
+            XmlDocument doc = new XmlDocument ();
 
-            XmlNode xmlnode = doc.CreateNode(XmlNodeType.XmlDeclaration,
+            XmlNode xmlnode = doc.CreateNode (XmlNodeType.XmlDeclaration,
                     "", "");
 
-            doc.AppendChild(xmlnode);
+            doc.AppendChild (xmlnode);
 
-            XmlElement rootElement = doc.CreateElement("", "ServerResponse",
+            XmlElement rootElement = doc.CreateElement ("", "ServerResponse",
                     "");
 
-            doc.AppendChild(rootElement);
+            doc.AppendChild (rootElement);
 
-            XmlElement result = doc.CreateElement("", "Result", "");
-            result.AppendChild(doc.CreateTextNode("Success"));
+            XmlElement result = doc.CreateElement ("", "Result", "");
+            result.AppendChild (doc.CreateTextNode ("Success"));
 
-            rootElement.AppendChild(result);
+            rootElement.AppendChild (result);
 
-            return DocToBytes(doc);
+            return DocToBytes (doc);
         }
 
-        private byte[] SuccessResult(string value)
+        private byte[] SuccessResult (string value)
         {
-            XmlDocument doc = new XmlDocument();
+            XmlDocument doc = new XmlDocument ();
 
-            XmlNode xmlnode = doc.CreateNode(XmlNodeType.XmlDeclaration,
+            XmlNode xmlnode = doc.CreateNode (XmlNodeType.XmlDeclaration,
                     "", "");
 
-            doc.AppendChild(xmlnode);
+            doc.AppendChild (xmlnode);
 
-            XmlElement rootElement = doc.CreateElement("", "ServerResponse",
+            XmlElement rootElement = doc.CreateElement ("", "ServerResponse",
                     "");
 
-            doc.AppendChild(rootElement);
+            doc.AppendChild (rootElement);
 
-            XmlElement result = doc.CreateElement("", "Result", "");
-            result.AppendChild(doc.CreateTextNode("Success"));
+            XmlElement result = doc.CreateElement ("", "Result", "");
+            result.AppendChild (doc.CreateTextNode ("Success"));
 
-            rootElement.AppendChild(result);
+            rootElement.AppendChild (result);
 
-            XmlElement message = doc.CreateElement("", "Value", "");
-            message.AppendChild(doc.CreateTextNode(value));
+            XmlElement message = doc.CreateElement ("", "Value", "");
+            message.AppendChild (doc.CreateTextNode (value));
 
-            rootElement.AppendChild(message);
+            rootElement.AppendChild (message);
 
-            return DocToBytes(doc);
+            return DocToBytes (doc);
         }
 
 
-        private byte[] FailureResult()
+        private byte[] FailureResult ()
         {
-            return FailureResult(String.Empty);
+            return FailureResult (String.Empty);
         }
 
-        private byte[] FailureResult(string msg)
+        private byte[] FailureResult (string msg)
         {
-            XmlDocument doc = new XmlDocument();
+            XmlDocument doc = new XmlDocument ();
 
-            XmlNode xmlnode = doc.CreateNode(XmlNodeType.XmlDeclaration,
+            XmlNode xmlnode = doc.CreateNode (XmlNodeType.XmlDeclaration,
                     "", "");
 
-            doc.AppendChild(xmlnode);
+            doc.AppendChild (xmlnode);
 
-            XmlElement rootElement = doc.CreateElement("", "ServerResponse",
+            XmlElement rootElement = doc.CreateElement ("", "ServerResponse",
                     "");
 
-            doc.AppendChild(rootElement);
+            doc.AppendChild (rootElement);
 
-            XmlElement result = doc.CreateElement("", "Result", "");
-            result.AppendChild(doc.CreateTextNode("Failure"));
+            XmlElement result = doc.CreateElement ("", "Result", "");
+            result.AppendChild (doc.CreateTextNode ("Failure"));
 
-            rootElement.AppendChild(result);
+            rootElement.AppendChild (result);
 
-            XmlElement message = doc.CreateElement("", "Message", "");
-            message.AppendChild(doc.CreateTextNode(msg));
+            XmlElement message = doc.CreateElement ("", "Message", "");
+            message.AppendChild (doc.CreateTextNode (msg));
 
-            rootElement.AppendChild(message);
+            rootElement.AppendChild (message);
 
-            return DocToBytes(doc);
+            return DocToBytes (doc);
         }
 
-        private byte[] DocToBytes(XmlDocument doc)
+        private byte[] DocToBytes (XmlDocument doc)
         {
-            MemoryStream ms = new MemoryStream();
-            XmlTextWriter xw = new XmlTextWriter(ms, null) { Formatting = Formatting.Indented };
-            doc.WriteTo(xw);
-            xw.Flush();
+            MemoryStream ms = new MemoryStream ();
+            XmlTextWriter xw = new XmlTextWriter(ms, null) {Formatting = Formatting.Indented};
+            doc.WriteTo (xw);
+            xw.Flush ();
 
-
-            return ms.ToArray();
+            return ms.ToArray ();
         }
 
         #endregion

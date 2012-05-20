@@ -29,16 +29,16 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
+
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
+
 using Nini.Config;
 using Aurora.Simulation.Base;
-
 
 namespace Aurora.Addon.Hypergrid
 {
@@ -51,61 +51,61 @@ namespace Aurora.Addon.Hypergrid
         private static IUserAgentService m_UserAgentService;
         private static ISimulationService m_SimulationService;
         private static ICapsService m_CapsService;
+
         protected string m_AllowedClients = string.Empty;
         protected string m_DeniedClients = string.Empty;
         protected string m_defaultRegion = string.Empty;
-        private static bool m_ForeignAgentsAllowed = true;
-        private static UUID m_ScopeID;
+
         private static bool m_AllowTeleportsToAnyRegion;
         private static string m_ExternalName;
         private static GridRegion m_DefaultGatewayRegion;
         private static bool m_foundDefaultRegion = false;
-        public void Initialize(IConfigSource config, IRegistryCore registry)
 
+        public void Initialize (IConfigSource config, IRegistryCore registry)
         {
             IConfig hgConfig = config.Configs["HyperGrid"];
-            if (hgConfig == null || !hgConfig.GetBoolean("Enabled", false))
+            if (hgConfig == null || !hgConfig.GetBoolean ("Enabled", false))
                 return;
 
             IConfig serverConfig = config.Configs["GatekeeperService"];
             bool enabled = false;
             if (serverConfig != null)
             {
-                m_AllowTeleportsToAnyRegion = hgConfig.GetBoolean("AllowTeleportsToAnyRegion", true);
-                m_defaultRegion = hgConfig.GetString("DefaultTeleportRegion", "");
-                enabled = serverConfig.GetBoolean("Enabled", false);
+                m_AllowTeleportsToAnyRegion = hgConfig.GetBoolean ("AllowTeleportsToAnyRegion", true);
+                m_defaultRegion = hgConfig.GetString ("DefaultTeleportRegion", "");
+                enabled = serverConfig.GetBoolean ("Enabled", false);
             }
             if (!enabled)
                 return;
 
             m_registry = registry;
-
+            
             IHttpServer server = MainServer.Instance;
             m_ExternalName = server.FullHostName + ":" + server.Port + "/";
-            Uri m_Uri = new Uri(m_ExternalName);
+            Uri m_Uri = new Uri (m_ExternalName);
             IPAddress ip = NetworkUtils.GetHostFromDNS(m_Uri.Host);
-            m_ExternalName = m_ExternalName.Replace(m_Uri.Host, ip.ToString());
-            registry.RegisterModuleInterface<IGatekeeperService>(this);
+            m_ExternalName = m_ExternalName.Replace (m_Uri.Host, ip.ToString ());
+            registry.RegisterModuleInterface<IGatekeeperService> (this);
         }
 
-        public void Start(IConfigSource config, IRegistryCore registry)
+        public void Start (IConfigSource config, IRegistryCore registry)
         {
         }
 
-        public void FinishedStartup()
+        public void FinishedStartup ()
         {
             if (m_registry == null)
                 return; //Not enabled
-            m_CapsService = m_registry.RequestModuleInterface<ICapsService>();
-            m_GridService = m_registry.RequestModuleInterface<IGridService>();
-            m_PresenceService = m_registry.RequestModuleInterface<IAgentInfoService>();
-            m_UserAccountService = m_registry.RequestModuleInterface<IUserAccountService>();
-            m_UserAgentService = m_registry.RequestModuleInterface<IUserAgentService>();
-            m_SimulationService = m_registry.RequestModuleInterface<ISimulationService>();
-            m_DefaultGatewayRegion = FindDefaultRegion();
+            m_CapsService = m_registry.RequestModuleInterface<ICapsService> ();
+            m_GridService = m_registry.RequestModuleInterface<IGridService> ();
+            m_PresenceService = m_registry.RequestModuleInterface<IAgentInfoService> ();
+            m_UserAccountService = m_registry.RequestModuleInterface<IUserAccountService> ();
+            m_UserAgentService = m_registry.RequestModuleInterface<IUserAgentService> ();
+            m_SimulationService = m_registry.RequestModuleInterface<ISimulationService> ();
+            m_DefaultGatewayRegion = FindDefaultRegion ();
         }
 
-        private GridRegion FindDefaultRegion()
+        private GridRegion FindDefaultRegion ()
         {
             GridRegion region = null;
             if (m_defaultRegion != "")//This overrides all
@@ -117,30 +117,29 @@ namespace Aurora.Addon.Hypergrid
                     return region;
                 }
             }
-            List<GridRegion> defs = m_GridService.GetDefaultRegions(UUID.Zero);
+            List<GridRegion> defs = m_GridService.GetDefaultRegions (UUID.Zero);
             if (defs != null && defs.Count > 0)
                 region = FindRegion(defs);
             if (region == null)
             {
-                defs = m_GridService.GetFallbackRegions(UUID.Zero, 0, 0);
+                defs = m_GridService.GetFallbackRegions (UUID.Zero, 0, 0);
                 if (defs != null && defs.Count > 0)
-                    region = FindRegion(defs);
+                    region = FindRegion (defs);
                 if (region == null)
                 {
-                    defs = m_GridService.GetSafeRegions(UUID.Zero, 0, 0);
+                    defs = m_GridService.GetSafeRegions (UUID.Zero, 0, 0);
                     if (defs != null && defs.Count > 0)
-                        region = FindRegion(defs);
+                        region = FindRegion (defs);
                     if (region == null)
-                        MainConsole.Instance.WarnFormat("[GATEKEEPER SERVICE]: Please specify a default region for this grid!");
+                        MainConsole.Instance.WarnFormat ("[GATEKEEPER SERVICE]: Please specify a default region for this grid!");
                 }
-
             }
-            if (region != null)
+            if(region != null)
                 m_foundDefaultRegion = true;
             return region;
         }
 
-        private GridRegion FindRegion(List<GridRegion> defs)
+        private GridRegion FindRegion (List<GridRegion> defs)
         {
 #if (!ISWIN)
             for (int i = 0; i < defs.Count; i++)
@@ -154,7 +153,7 @@ namespace Aurora.Addon.Hypergrid
             return null;
         }
 
-        public bool LinkRegion(string regionName, out UUID regionID, out ulong regionHandle, out string externalName, out string imageURL, out string reason)
+        public bool LinkRegion (string regionName, out UUID regionID, out ulong regionHandle, out string externalName, out string imageURL, out string reason)
         {
             regionID = UUID.Zero;
             regionHandle = 0;
@@ -163,28 +162,25 @@ namespace Aurora.Addon.Hypergrid
             reason = string.Empty;
             GridRegion region = null;
 
-            MainConsole.Instance.DebugFormat("[GATEKEEPER SERVICE]: Request to link to {0}", (regionName == string.Empty) ? "default region" : regionName);
+            MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE]: Request to link to {0}", (regionName == string.Empty) ? "default region" : regionName);
             if (!m_AllowTeleportsToAnyRegion || regionName == string.Empty)
             {
-                if (!m_foundDefaultRegion)
+                if(!m_foundDefaultRegion)
                     m_DefaultGatewayRegion = FindDefaultRegion();
                 if (m_DefaultGatewayRegion != null)
-
                     region = m_DefaultGatewayRegion;
-
                 else
                 {
                     reason = "Grid setup problem. Try specifying a particular region here.";
-
                     return false;
                 }
             }
             else
             {
-                region = m_GridService.GetRegionByName(UUID.Zero, regionName);
+                region = m_GridService.GetRegionByName (UUID.Zero, regionName);
                 if (region == null)
                 {
-                    if (!m_foundDefaultRegion)
+                    if(!m_foundDefaultRegion)
                         m_DefaultGatewayRegion = FindDefaultRegion();
                     if (m_DefaultGatewayRegion != null)
                         region = m_DefaultGatewayRegion;
@@ -193,47 +189,44 @@ namespace Aurora.Addon.Hypergrid
                         reason = "Region not found";
                         return false;
                     }
-
                 }
             }
 
             regionID = region.RegionID;
             regionHandle = region.RegionHandle;
 
-            string regionimage = "regionImage" + regionID.ToString();
-            regionimage = regionimage.Replace("-", "");
+            string regionimage = "regionImage" + regionID.ToString ();
+            regionimage = regionimage.Replace ("-", "");
             imageURL = region.ServerURI + "/" + "index.php?method=" + regionimage;
 
             return true;
         }
 
-        public GridRegion GetHyperlinkRegion(UUID regionID)
+        public GridRegion GetHyperlinkRegion (UUID regionID)
         {
-            MainConsole.Instance.DebugFormat("[GATEKEEPER SERVICE]: Request to get hyperlink region {0}", regionID);
+            MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE]: Request to get hyperlink region {0}", regionID);
 
-            if (!m_AllowTeleportsToAnyRegion)
+            if(!m_AllowTeleportsToAnyRegion)
             {
                 if (!m_foundDefaultRegion || m_DefaultGatewayRegion == null)
                     m_DefaultGatewayRegion = FindDefaultRegion();
-
                 // Don't even check the given regionID
                 return m_DefaultGatewayRegion;
             }
 
-            GridRegion region = m_GridService.GetRegionByUUID(UUID.Zero, regionID);
-            if (region != null && (region.Flags & (int)Framework.RegionFlags.Safe) == (int)Framework.RegionFlags.Safe)
+            GridRegion region = m_GridService.GetRegionByUUID (UUID.Zero, regionID);
+            if(region != null && (region.Flags & (int)Framework.RegionFlags.Safe) == (int)Framework.RegionFlags.Safe)
                 return region;
             if (!m_foundDefaultRegion || m_DefaultGatewayRegion == null)
                 m_DefaultGatewayRegion = FindDefaultRegion();
             if (m_DefaultGatewayRegion != null && (m_DefaultGatewayRegion.Flags & (int)Framework.RegionFlags.Safe) == (int)Framework.RegionFlags.Safe)
                 return m_DefaultGatewayRegion;
-            return (m_DefaultGatewayRegion = FindDefaultRegion());
-
+            return (m_DefaultGatewayRegion = FindDefaultRegion ());
         }
 
         #region Login Agent
 
-        public bool LoginAgent(AgentCircuitData aCircuit, GridRegion destination, out string reason)
+        public bool LoginAgent (AgentCircuitData aCircuit, GridRegion destination, out string reason)
         {
             reason = string.Empty;
 
@@ -243,11 +236,10 @@ namespace Aurora.Addon.Hypergrid
             MainConsole.Instance.InfoFormat ("[GATEKEEPER SERVICE]: Login request for {0} {1} @ {2}",
                 authURL, aCircuit.AgentID, destination.RegionName);
 
-
             //
             // Check client
             //
-            if (m_AllowedClients != string.Empty)
+            /*if (m_AllowedClients != string.Empty)
             {
                 Regex arx = new Regex (m_AllowedClients);
                 Match am = arx.Match (aCircuit.Viewer);
@@ -269,8 +261,7 @@ namespace Aurora.Addon.Hypergrid
                     MainConsole.Instance.InfoFormat ("[GATEKEEPER SERVICE]: Login failed, reason: client {0} is denied", aCircuit.Viewer);
                     return false;
                 }
-            }
-
+            }*/
 
             //
             // Authenticate the user
@@ -282,7 +273,6 @@ namespace Aurora.Addon.Hypergrid
                 return false;
             }
             MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE]: Identity verified for {0} @ {1}", aCircuit.AgentID, authURL);
-
 
             //
             // Check for impersonations
@@ -297,13 +287,12 @@ namespace Aurora.Addon.Hypergrid
                     // Make sure this is the user coming home, and not a foreign user with same UUID as a local user
                     if (m_UserAgentService != null)
                     {
-                        if (!m_UserAgentService.IsAgentComingHome (aCircuit.SessionID, m_ExternalName))
+                        if (!m_UserAgentService.AgentIsComingHome (aCircuit.SessionID, m_ExternalName))
                         {
                             // Can't do, sorry
                             reason = "Unauthorized";
                             MainConsole.Instance.InfoFormat ("[GATEKEEPER SERVICE]: Foreign agent {0} has same ID as local user. Refusing service.",
-                                aCircuit.firstname, aCircuit.lastname);
-
+                                aCircuit.AgentID);
                             return false;
 
                         }
@@ -311,17 +300,6 @@ namespace Aurora.Addon.Hypergrid
                 }
             }
             MainConsole.Instance.InfoFormat ("[GATEKEEPER SERVICE]: User is ok");
-
-			//
-            // Foreign agents allowed
-            //
-            if (account == null && !m_ForeignAgentsAllowed)
-            {
-                reason = "Unauthorized";
-                MainConsole.Instance.InfoFormat("[GATEKEEPER SERVICE]: Foreign agents are not permitted {0} {1}. Refusing service.",
-                    aCircuit.firstname, aCircuit.lastname);
-                return false;
-            }
 
             // May want to authorize
 
@@ -348,7 +326,7 @@ namespace Aurora.Addon.Hypergrid
                 reason = "Destination region not found";
                 return false;
             }
-            
+
             //
             // Adjust the visible name
             //
@@ -358,9 +336,7 @@ namespace Aurora.Addon.Hypergrid
                 aCircuit.lastname = account.LastName;
             }
             if (account == null && !aCircuit.lastname.StartsWith ("@"))
-
             {
-
                 aCircuit.firstname = aCircuit.firstname + "." + aCircuit.lastname;
                 try
                 {
@@ -393,10 +369,6 @@ namespace Aurora.Addon.Hypergrid
             }
             aCircuit.child = false;//FIX THIS, OPENSIM ALWAYS SENDS CHILD!
             int requestedUDPPort = 0;
-
-
-
-
             bool success = m_SimulationService.CreateAgent (destination, ref aCircuit, (uint)loginFlag, null, out requestedUDPPort, out reason);
             if (success)
             {
@@ -428,7 +400,7 @@ namespace Aurora.Addon.Hypergrid
             return true;
         }
 
-        protected bool Authenticate(AgentCircuitData aCircuit)
+        protected bool Authenticate (AgentCircuitData aCircuit)
         {
             if (!CheckAddress (aCircuit.ServiceSessionID))
                 return false;
@@ -447,37 +419,34 @@ namespace Aurora.Addon.Hypergrid
                 return m_UserAgentService.VerifyAgent (aCircuit.SessionID, aCircuit.ServiceSessionID);
             //                Object[] args = new Object[] { userURL };
             IUserAgentService userAgentService = new UserAgentServiceConnector (userURL);
-            
+            try
             {
-            return userAgentService.VerifyAgent (aCircuit.SessionID, aCircuit.ServiceSessionID);
+                return userAgentService.VerifyAgent (aCircuit.SessionID, aCircuit.ServiceSessionID);
             }
-            
+            catch
+            {
+                MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE]: Unable to contact authentication service at {0}", userURL);
+                return false;
+            }
         }
 
         // Check that the service token was generated for *this* grid.
         // If it wasn't then that's a fake agent.
-        protected bool CheckAddress(string serviceToken)
+        protected bool CheckAddress (string serviceToken)
         {
-            string[] parts = serviceToken.Split(new[] { ';' });
+            string[] parts = serviceToken.Split (new[] { ';' });
             if (parts.Length < 2)
                 return false;
 
             char[] trailing_slash = new[] { '/' };
-            string addressee = parts[0].TrimEnd(trailing_slash);
-            string externalname = m_ExternalName.TrimEnd(trailing_slash);
-            MainConsole.Instance.DebugFormat("[GATEKEEPER SERVICE]: Verifying {0} against {1}", addressee, externalname);
-            Uri m_Uri = new Uri(addressee);
+            string addressee = parts[0].TrimEnd (trailing_slash);
+            string externalname = m_ExternalName.TrimEnd (trailing_slash);
+            MainConsole.Instance.DebugFormat ("[GATEKEEPER SERVICE]: Verifying {0} against {1}", addressee, externalname);
+            Uri m_Uri = new Uri (addressee);
             IPAddress ip = NetworkUtils.GetHostFromDNS(m_Uri.Host);
-            addressee = addressee.Replace(m_Uri.Host, ip.ToString());
-
-            return string.Equals(addressee, externalname, StringComparison.OrdinalIgnoreCase);
+            addressee = addressee.Replace (m_Uri.Host, ip.ToString ());
+            return string.Equals (addressee, externalname, StringComparison.OrdinalIgnoreCase);
         }
-
-
-
-
-
-
 
         #endregion
     }

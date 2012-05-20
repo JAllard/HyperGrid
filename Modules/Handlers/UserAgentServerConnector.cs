@@ -29,20 +29,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Net;
-
-
-using Nini.Config;
 using System.Linq;
+using Nini.Config;
 using Aurora.Framework;
 using Aurora.Framework.Servers.HttpServer;
-
 using OpenSim.Services.Interfaces;
-
-
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using Aurora.Simulation.Base;
-
-
 using Nwc.XmlRpc;
 using OpenMetaverse;
 
@@ -55,11 +48,6 @@ namespace Aurora.Addon.Hypergrid
         //                MethodBase.GetCurrentMethod().DeclaringType);
 
         private IUserAgentService m_HomeUsersService;
-        public IUserAgentService HomeUsersService
-        {
-            get { return m_HomeUsersService; }
-        }
-
         private string[] m_AuthorizedCallers;
         private IConfigSource config;
         private IRegistryCore registry;
@@ -68,207 +56,182 @@ namespace Aurora.Addon.Hypergrid
 
         #region IService members
 
-        public void Initialize(IConfigSource config2, IRegistryCore registry2)
+        public void Initialize (IConfigSource config2, IRegistryCore registry2)
         {
         }
 
-        public void Start(IConfigSource config2, IRegistryCore registry2)
+        public void Start (IConfigSource config2, IRegistryCore registry2)
         {
             config = config2;
             registry = registry2;
-
-
-
         }
 
-        public void FinishedStartup()
+        public void FinishedStartup ()
         {
             IConfig hgConfig = config.Configs["HyperGrid"];
-            if (hgConfig == null || !hgConfig.GetBoolean("Enabled", false))
+            if (hgConfig == null || !hgConfig.GetBoolean ("Enabled", false))
                 return;
 
             IConfig gridConfig = config.Configs["UserAgentService"];
-            if (gridConfig == null || !gridConfig.GetBoolean("Enabled", false))
+            if (gridConfig == null || !gridConfig.GetBoolean ("Enabled", false))
                 return;
 
+            bool proxy = gridConfig.GetBoolean ("HasProxy", false);
 
-
-
-            bool proxy = gridConfig.GetBoolean("HasProxy", false);
-
-
-
-
-
-
-            m_VerifyCallers = gridConfig.GetBoolean("VerifyCallers", false);
-            string csv = gridConfig.GetString("AuthorizedCallers", "127.0.0.1");
-            csv = csv.Replace(" ", "");
-            m_AuthorizedCallers = csv.Split(',');
-
+            m_VerifyCallers = gridConfig.GetBoolean ("VerifyCallers", false);
+            string csv = gridConfig.GetString ("AuthorizedCallers", "127.0.0.1");
+            csv = csv.Replace (" ", "");
+            m_AuthorizedCallers = csv.Split (',');
 
             IHttpServer server = MainServer.Instance;
 
+            server.AddXmlRPCHandler ("agent_is_coming_home", AgentIsComingHome, false);
+            server.AddXmlRPCHandler ("get_home_region", GetHomeRegion, false);
+            server.AddXmlRPCHandler ("verify_agent", VerifyAgent, false);
+            server.AddXmlRPCHandler ("verify_client", VerifyClient, false);
+            server.AddXmlRPCHandler ("logout_agent", LogoutAgent, false);
 
+            server.AddXmlRPCHandler ("status_notification", StatusNotification, false);
+            server.AddXmlRPCHandler ("get_online_friends", GetOnlineFriends, false);
+            server.AddXmlRPCHandler ("get_server_urls", GetServerURLs, false);
 
+            server.AddXmlRPCHandler ("locate_user", LocateUser, false);
+            server.AddXmlRPCHandler ("get_uui", GetUUI, false);
 
-
-            server.AddXmlRPCHandler("agent_is_coming_home", AgentIsComingHome, false);
-            server.AddXmlRPCHandler("get_home_region", GetHomeRegion, false);
-            server.AddXmlRPCHandler("verify_agent", VerifyAgent, false);
-            server.AddXmlRPCHandler("verify_client", VerifyClient, false);
-            server.AddXmlRPCHandler("logout_agent", LogoutAgent, false);
-
-            server.AddXmlRPCHandler("status_notification", StatusNotification, false);
-            server.AddXmlRPCHandler("get_online_friends", GetOnlineFriends, false);
-            server.AddXmlRPCHandler("get_user_info", GetUserInfo, false);
-            server.AddXmlRPCHandler("get_server_urls", GetServerURLs, false);
-
-            server.AddXmlRPCHandler("locate_user", LocateUser, false);
-            server.AddXmlRPCHandler("get_uui", GetUUI, false);
-            server.AddXmlRPCHandler("get_uuid", GetUUID, false);
-
-
-            m_HomeUsersService = registry.RequestModuleInterface<IUserAgentService>();
-            Uri m_Uri = new Uri(server.FullHostName);
+            m_HomeUsersService = registry.RequestModuleInterface<IUserAgentService> ();
+            Uri m_Uri = new Uri (server.FullHostName);
             IPAddress ip = NetworkUtils.GetHostFromDNS(m_Uri.Host);
-            string sip = ip.ToString();
-            server.AddHTTPHandler("/homeagent", new HomeAgentHandler(m_HomeUsersService, sip, proxy).Handler);
+            string sip = ip.ToString ();
+            server.AddHTTPHandler ("/homeagent", new HomeAgentHandler (m_HomeUsersService, sip, proxy).Handler);
         }
 
         #endregion
 
-        public XmlRpcResponse GetHomeRegion(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse GetHomeRegion (XmlRpcRequest request, IPEndPoint remoteClient)
         {
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
             string userID_str = (string)requestData["userID"];
             UUID userID = UUID.Zero;
-            UUID.TryParse(userID_str, out userID);
+            UUID.TryParse (userID_str, out userID);
 
             Vector3 position = Vector3.UnitY, lookAt = Vector3.UnitY;
-            GridRegion regInfo = m_HomeUsersService.GetHomeRegion(userID, out position, out lookAt);
+            GridRegion regInfo = m_HomeUsersService.GetHomeRegion (userID, out position, out lookAt);
 
-            Hashtable hash = new Hashtable();
+            Hashtable hash = new Hashtable ();
             if (regInfo == null)
                 hash["result"] = "false";
             else
             {
                 hash["result"] = "true";
-                hash["uuid"] = regInfo.RegionID.ToString();
-                hash["x"] = regInfo.RegionLocX.ToString();
-                hash["y"] = regInfo.RegionLocY.ToString();
+                hash["uuid"] = regInfo.RegionID.ToString ();
+                hash["x"] = regInfo.RegionLocX.ToString ();
+                hash["y"] = regInfo.RegionLocY.ToString ();
                 hash["region_name"] = regInfo.RegionName;
                 hash["hostname"] = regInfo.ExternalHostName;
-                hash["http_port"] = regInfo.HttpPort.ToString();
-                hash["internal_port"] = regInfo.InternalEndPoint.Port.ToString();
-                hash["position"] = position.ToString();
-                hash["lookAt"] = lookAt.ToString();
+                hash["http_port"] = regInfo.HttpPort.ToString ();
+                hash["internal_port"] = regInfo.InternalEndPoint.Port.ToString ();
+                hash["position"] = position.ToString ();
+                hash["lookAt"] = lookAt.ToString ();
             }
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
 
-        public XmlRpcResponse AgentIsComingHome(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse AgentIsComingHome (XmlRpcRequest request, IPEndPoint remoteClient)
         {
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
             string sessionID_str = (string)requestData["sessionID"];
             UUID sessionID = UUID.Zero;
-            UUID.TryParse(sessionID_str, out sessionID);
+            UUID.TryParse (sessionID_str, out sessionID);
             string gridName = (string)requestData["externalName"];
 
-            bool success = m_HomeUsersService.IsAgentComingHome(sessionID, gridName);
+            bool success = m_HomeUsersService.AgentIsComingHome (sessionID, gridName);
 
-            Hashtable hash = new Hashtable();
-            hash["result"] = success.ToString();
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            Hashtable hash = new Hashtable ();
+            hash["result"] = success.ToString ();
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
 
-        public XmlRpcResponse VerifyAgent(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse VerifyAgent (XmlRpcRequest request, IPEndPoint remoteClient)
         {
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
             string sessionID_str = (string)requestData["sessionID"];
             UUID sessionID = UUID.Zero;
-            UUID.TryParse(sessionID_str, out sessionID);
+            UUID.TryParse (sessionID_str, out sessionID);
             string token = (string)requestData["token"];
 
-            bool success = m_HomeUsersService.VerifyAgent(sessionID, token);
+            bool success = m_HomeUsersService.VerifyAgent (sessionID, token);
 
-            Hashtable hash = new Hashtable();
-            hash["result"] = success.ToString();
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            Hashtable hash = new Hashtable ();
+            hash["result"] = success.ToString ();
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
 
-        public XmlRpcResponse VerifyClient(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse VerifyClient (XmlRpcRequest request, IPEndPoint remoteClient)
         {
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
             string sessionID_str = (string)requestData["sessionID"];
             UUID sessionID = UUID.Zero;
-            UUID.TryParse(sessionID_str, out sessionID);
+            UUID.TryParse (sessionID_str, out sessionID);
             string token = (string)requestData["token"];
 
-            bool success = m_HomeUsersService.VerifyClient(sessionID, token);
+            bool success = m_HomeUsersService.VerifyClient (sessionID, token);
 
-            Hashtable hash = new Hashtable();
-            hash["result"] = success.ToString();
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            Hashtable hash = new Hashtable ();
+            hash["result"] = success.ToString ();
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
 
-        public XmlRpcResponse LogoutAgent(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse LogoutAgent (XmlRpcRequest request, IPEndPoint remoteClient)
         {
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
             string sessionID_str = (string)requestData["sessionID"];
             UUID sessionID = UUID.Zero;
-            UUID.TryParse(sessionID_str, out sessionID);
+            UUID.TryParse (sessionID_str, out sessionID);
             string userID_str = (string)requestData["userID"];
             UUID userID = UUID.Zero;
-            UUID.TryParse(userID_str, out userID);
+            UUID.TryParse (userID_str, out userID);
 
-            m_HomeUsersService.LogoutAgent(userID, sessionID);
+            m_HomeUsersService.LogoutAgent (userID, sessionID);
 
-            Hashtable hash = new Hashtable();
+            Hashtable hash = new Hashtable ();
             hash["result"] = "true";
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
 
-
-        public XmlRpcResponse StatusNotification(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse StatusNotification (XmlRpcRequest request, IPEndPoint remoteClient)
         {
-            Hashtable hash = new Hashtable();
+            Hashtable hash = new Hashtable ();
             hash["result"] = "false";
 
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
-            if (requestData.ContainsKey("userID") && requestData.ContainsKey("online"))
+            if (requestData.ContainsKey ("userID") && requestData.ContainsKey ("online"))
             {
                 string userID_str = (string)requestData["userID"];
                 UUID userID = UUID.Zero;
-                UUID.TryParse(userID_str, out userID);
-                List<string> ids = new List<string>();
+                UUID.TryParse (userID_str, out userID);
+                List<string> ids = new List<string> ();
 #if (!ISWIN)
                 foreach (object key in requestData.Keys)
                 {
@@ -279,16 +242,16 @@ namespace Aurora.Addon.Hypergrid
                 ids.AddRange(from object key in requestData.Keys where key is string && ((string) key).StartsWith("friend_") && requestData[key] != null select requestData[key].ToString());
 #endif
                 bool online = false;
-                bool.TryParse(requestData["online"].ToString(), out online);
+                bool.TryParse (requestData["online"].ToString (), out online);
 
                 // let's spawn a thread for this, because it may take a long time...
-                List<UUID> friendsOnline = m_HomeUsersService.StatusNotification(ids, userID, online);
+                List<UUID> friendsOnline = m_HomeUsersService.StatusNotification (ids, userID, online);
                 if (friendsOnline.Count > 0)
                 {
                     int i = 0;
                     foreach (UUID id in friendsOnline)
                     {
-                        hash["friend_" + i.ToString()] = id.ToString();
+                        hash["friend_" + i.ToString ()] = id.ToString ();
                         i++;
                     }
                 }
@@ -297,26 +260,24 @@ namespace Aurora.Addon.Hypergrid
 
             }
 
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
 
-
-        public XmlRpcResponse GetOnlineFriends(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse GetOnlineFriends (XmlRpcRequest request, IPEndPoint remoteClient)
         {
-            Hashtable hash = new Hashtable();
+            Hashtable hash = new Hashtable ();
 
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
-            if (requestData.ContainsKey("userID"))
+            if (requestData.ContainsKey ("userID"))
             {
                 string userID_str = (string)requestData["userID"];
                 UUID userID;
-                UUID.TryParse(userID_str, out userID);
-                List<string> ids = new List<string>();
+                UUID.TryParse (userID_str, out userID);
+                List<string> ids = new List<string> ();
 #if (!ISWIN)
                 foreach (object key in requestData.Keys)
                 {
@@ -341,69 +302,35 @@ namespace Aurora.Addon.Hypergrid
                 //    hash["result"] = "No Friends Online";
             }
 
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
 
-        public XmlRpcResponse GetUserInfo(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse GetServerURLs (XmlRpcRequest request, IPEndPoint remoteClient)
         {
-            Hashtable hash = new Hashtable();
-            Hashtable requestData = (Hashtable)request.Params[0];
-
-            // This needs checking!
-            if (requestData.ContainsKey("userID"))
-            {
-                string userID_str = (string)requestData["userID"];
-                UUID userID = UUID.Zero;
-                UUID.TryParse(userID_str, out userID);
-
-                //int userFlags = m_HomeUsersService.GetUserFlags(userID);
-                Dictionary<string, object> userInfo = m_HomeUsersService.GetUserInfo(userID);
-                if (userInfo.Count > 0)
-                {
-                    foreach (KeyValuePair<string, object> kvp in userInfo)
-                    {
-                        hash[kvp.Key] = kvp.Value;
-                    }
-                }
-                else
-                {
-                    hash["result"] = "failure";
-                }
-            }
-
-            XmlRpcResponse response = new XmlRpcResponse();
-            response.Value = hash;
-            return response;
-        }
-
-        public XmlRpcResponse GetServerURLs(XmlRpcRequest request, IPEndPoint remoteClient)
-        {
-            Hashtable hash = new Hashtable();
+            Hashtable hash = new Hashtable ();
 
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
-            if (requestData.ContainsKey("userID"))
+            if (requestData.ContainsKey ("userID"))
             {
                 string userID_str = (string)requestData["userID"];
                 UUID userID;
-                UUID.TryParse(userID_str, out userID);
+                UUID.TryParse (userID_str, out userID);
 
-                Dictionary<string, object> serverURLs = m_HomeUsersService.GetServerURLs(userID);
+                Dictionary<string, object> serverURLs = m_HomeUsersService.GetServerURLs (userID);
                 if (serverURLs.Count > 0)
                 {
                     foreach (KeyValuePair<string, object> kvp in serverURLs)
-                        hash["SRV_" + kvp.Key] = kvp.Value.ToString();
+                        hash["SRV_" + kvp.Key] = kvp.Value.ToString ();
                 }
                 else
                     hash["result"] = "No Service URLs";
             }
 
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -415,9 +342,9 @@ namespace Aurora.Addon.Hypergrid
         /// <param name="request"></param>
         /// <param name="remoteClient"></param>
         /// <returns></returns>
-        public XmlRpcResponse LocateUser(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse LocateUser (XmlRpcRequest request, IPEndPoint remoteClient)
         {
-            Hashtable hash = new Hashtable();
+            Hashtable hash = new Hashtable ();
 
             bool authorized = true;
             if (m_VerifyCallers)
@@ -443,13 +370,13 @@ namespace Aurora.Addon.Hypergrid
                 Hashtable requestData = (Hashtable)request.Params[0];
                 //string host = (string)requestData["host"];
                 //string portstr = (string)requestData["port"];
-                if (requestData.ContainsKey("userID"))
+                if (requestData.ContainsKey ("userID"))
                 {
                     string userID_str = (string)requestData["userID"];
                     UUID userID;
-                    UUID.TryParse(userID_str, out userID);
+                    UUID.TryParse (userID_str, out userID);
 
-                    string url = m_HomeUsersService.LocateUser(userID);
+                    string url = m_HomeUsersService.LocateUser (userID);
                     if (url != string.Empty)
                         hash["URL"] = url;
                     else
@@ -457,8 +384,7 @@ namespace Aurora.Addon.Hypergrid
                 }
             }
 
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
@@ -466,64 +392,34 @@ namespace Aurora.Addon.Hypergrid
         /// <summary>
         /// Locates the user.
         /// This is a sensitive operation, only authorized IP addresses can perform it.
-
         /// </summary>
         /// <param name="request"></param>
         /// <param name="remoteClient"></param>
         /// <returns></returns>
-        public XmlRpcResponse GetUUI(XmlRpcRequest request, IPEndPoint remoteClient)
+        public XmlRpcResponse GetUUI (XmlRpcRequest request, IPEndPoint remoteClient)
         {
-            Hashtable hash = new Hashtable();
+            Hashtable hash = new Hashtable ();
 
             Hashtable requestData = (Hashtable)request.Params[0];
             //string host = (string)requestData["host"];
             //string portstr = (string)requestData["port"];
-            if (requestData.ContainsKey("userID") && requestData.ContainsKey("targetUserID"))
+            if (requestData.ContainsKey ("userID") && requestData.ContainsKey ("targetUserID"))
             {
                 string userID_str = (string)requestData["userID"];
                 UUID userID = UUID.Zero;
-                UUID.TryParse(userID_str, out userID);
+                UUID.TryParse (userID_str, out userID);
 
                 string tuserID_str = (string)requestData["targetUserID"];
                 UUID targetUserID;
-                UUID.TryParse(tuserID_str, out targetUserID);
-                string uui = m_HomeUsersService.GetUUI(userID, targetUserID);
+                UUID.TryParse (tuserID_str, out targetUserID);
+                string uui = m_HomeUsersService.GetUUI (userID, targetUserID);
                 if (uui != string.Empty)
                     hash["UUI"] = uui;
                 else
                     hash["result"] = "User unknown";
             }
 
-            XmlRpcResponse response = new XmlRpcResponse { Value = hash };
-            return response;
-
-        }
-
-        /// <summary>
-        /// Gets the UUID of a user given First name, Last name.
-        /// </summary>
-        /// <param name="request"></param>
-        /// <param name="remoteClient"></param>
-        /// <returns></returns>
-        public XmlRpcResponse GetUUID(XmlRpcRequest request, IPEndPoint remoteClient)
-        {
-            Hashtable hash = new Hashtable();
-
-            Hashtable requestData = (Hashtable)request.Params[0];
-            //string host = (string)requestData["host"];
-            //string portstr = (string)requestData["port"];
-            if (requestData.ContainsKey("first") && requestData.ContainsKey("last"))
-            {
-                UUID userID = UUID.Zero;
-                string first = (string)requestData["first"];
-
-                string last = (string)requestData["last"];
-                UUID uuid = m_HomeUsersService.GetUUID(first, last);
-                hash["UUID"] = uuid.ToString();
-            }
-
-            XmlRpcResponse response = new XmlRpcResponse();
-            response.Value = hash;
+            XmlRpcResponse response = new XmlRpcResponse {Value = hash};
             return response;
 
         }
